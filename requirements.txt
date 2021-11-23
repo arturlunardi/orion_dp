@@ -1,0 +1,7 @@
+pandas
+streamlit
+mysql.connector
+geocoder
+google-api-python-client
+folium
+streamlit_folium
