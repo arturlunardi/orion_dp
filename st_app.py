@@ -134,6 +134,8 @@ if check_password("password"):
 
             df_oferta = create_dataset.get_dataset_for_scraper()
 
+            df_oferta = df_oferta.loc[df_oferta['tipologia'] != 'Terreno']
+
             my_dict = df_oferta.drop(columns=['link', 'imobiliaria', 'alugado']).to_dict(orient='records')
             my_dict = [{k: [v] for k, v in i.items()} for i in my_dict]
 
@@ -165,6 +167,11 @@ if check_password("password"):
         # SideBar Filters
         st.sidebar.subheader("Filtros")
 
+        filter_finalidade = {'finalidade': st.sidebar.selectbox(
+        'Finalidade',
+        ["Todos"] + [i for i in df_oferta['finalidade'].sort_values(ascending=True).unique()]
+        )}
+
         filter_bairro = {'bairro': st.sidebar.selectbox(
         'Bairro',
         ["Todos"] + [i for i in df_oferta['bairro'].sort_values(ascending=True).unique()]
@@ -191,7 +198,11 @@ if check_password("password"):
 
         filter_button = st.sidebar.checkbox('Filtrar', help='Aperte o botão para filtrar os dados conforme os filtros selecionados')
 
-        filters = [filter_bairro, filter_tipologia, filter_dormitorios, filter_garagem]
+        filters = [filter_finalidade, filter_bairro, filter_tipologia, filter_dormitorios, filter_garagem]
+
+        h = '<head><style type="text/css"></style></head>'
+        bo = '<body><div style = "height:400px;width:100%;overflow:auto;">'
+        bc = '</div></body>'
 
         # Display Datasets
         if filter_button:
@@ -208,18 +219,20 @@ if check_password("password"):
                 elif value == '':
                     st.sidebar.warning(f"Por favor, selecione um valor válido no campo {key.title().replace('_', ' ')}")
                     # st.stop()
-                    
+
             st.header('Imóveis da Órion')
             st.dataframe(df_orion.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
 
             st.header('Imóveis Concorrentes')
             st.dataframe(df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
+            # st.write(h + bo + df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True).to_html(render_links=True, escape=False, bold_rows=False, float_format="%3s") + bc, unsafe_allow_html=True)
         else:
             st.header('Imóveis da Órion')
             st.dataframe(df_orion.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
 
             st.header('Imóveis Concorrentes')
             st.dataframe(df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
+            # st.write(h + bo + df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True).to_html(render_links=True, escape=False, bold_rows=False, float_format="%3s") + bc, unsafe_allow_html=True)
 
     # ------------- Predict Rent ------------------------
 

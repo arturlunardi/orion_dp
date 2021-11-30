@@ -103,9 +103,12 @@ def get_dataset_for_alugados():
     df_merged_alugados.replace({0: float("NaN"), '0': float("NaN")}, inplace=True)
     df_merged_alugados.dropna(subset=['area_privativa'], inplace=True)
 
-    # eu estou fazendo isso somente nos dados de treinamento e vou fazer nos de serviço.
-    # alterar kitnet + comercial dorm para 0
-    df_merged_alugados.loc[(df_merged_alugados['tipologia'] == 'Kitnet') | (df_merged_alugados['finalidade'] == 'Comercial'), 'dormitorios'] = 0
+    isencao_condominio = ['Casa', 'Box', 'Pavilhão', 'Terreno', 'Chácara', 'Outros', 'Galpão', 'Prédio', 'Lote', 'Casa Comercial']
+    # onde o valor do condominio é menor que e se não está dentro dos imóveis em que a tipologia é isenta de condominio, atribua nulo para fazer o fillna
+    df_merged_alugados.loc[df_merged_alugados['tipologia'].isin(isencao_condominio), 'valor_condominio'] = 0
+
+    # estamos transformando em 0 todos os kitnets e imóveis comerciais que não são casas ou casas comerciais
+    df_merged_alugados.loc[(df_merged_alugados['tipologia'] == 'Kitnet') | (df_merged_alugados['finalidade'] == 'Comercial') & (df_merged_alugados['tipologia'] != 'Casa Comercial') & (df_merged_alugados['tipologia'] != 'Casa'), 'dormitorios'] = 0
 
     columns = ['area_privativa', 'finalidade', 'bairro', 'banheiros', 'dormitorios', 'latitude', 'longitude', 'mobiliado', 'suites', 'tipologia', 'vagas_garagem', 'valor_condominio', 'valor_iptu_mensal', 'sacada', 'churrasqueira', 'valor_aluguel', 'alugado']
 
@@ -146,13 +149,16 @@ def get_dataset_for_scraper():
 
     df_merged_scraper.drop(columns=['comodidades'], inplace=True)
 
-    isencao_condominio = ['Casa', 'Box', 'Pavilhão', 'Terreno', 'Chácara', 'Outros', 'Galpão', 'Prédio']
+    isencao_condominio = ['Casa', 'Box', 'Pavilhão', 'Terreno', 'Chácara', 'Outros', 'Galpão', 'Prédio', 'Lote', 'Casa Comercial']
     # onde o valor do condominio é menor que e se não está dentro dos imóveis em que a tipologia é isenta de condominio, atribua nulo para fazer o fillna
     df_merged_scraper.loc[df_merged_scraper['tipologia'].isin(isencao_condominio), 'valor_condominio'] = 0
     df_merged_scraper.loc[(df_merged_scraper['valor_condominio'] < 50) & ~(df_merged_scraper['tipologia'].isin(isencao_condominio)), 'valor_condominio'] = np.nan
 
     # df_merged_scraper.loc[(df_merged_scraper['valor_condominio'] < 50), 'valor_condominio'] = np.nan
     df_merged_scraper.loc[(df_merged_scraper['valor_iptu_mensal'] < 8.4) | (df_merged_scraper['valor_iptu_mensal'] >= 300), 'valor_iptu_mensal'] = np.nan
+
+    # estamos transformando em 0 todos os kitnets e imóveis comerciais que não são casas ou casas comerciais
+    df_merged_scraper.loc[(df_merged_scraper['tipologia'] == 'Kitnet') | (df_merged_scraper['finalidade'] == 'Comercial') & (df_merged_scraper['tipologia'] != 'Casa Comercial') & (df_merged_scraper['tipologia'] != 'Casa'), 'dormitorios'] = 0
 
     df_merged_scraper['alugado'] = 0
 
