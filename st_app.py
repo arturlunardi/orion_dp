@@ -8,6 +8,7 @@ import googleapiclient.discovery
 import geocoder
 from streamlit_folium import folium_static
 import folium
+from io import BytesIO
 
 
 st.set_page_config(
@@ -90,6 +91,16 @@ def real_br_money_mask(my_value):
     b = a.replace(',','v')
     c = b.replace('.',',')
     return c.replace('v','.')
+
+
+@st.cache
+def to_excel(df):
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    df.to_excel(writer, index=False, sheet_name='Sheet1')
+    writer.save()
+    processed_data = output.getvalue()
+    return processed_data
 
 
 if check_password("password"):
@@ -233,6 +244,14 @@ if check_password("password"):
             st.header('Imóveis Concorrentes')
             st.dataframe(df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
             # st.write(h + bo + df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True).to_html(render_links=True, escape=False, bold_rows=False, float_format="%3s") + bc, unsafe_allow_html=True)
+    
+        df_excel = to_excel(df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
+
+        st.download_button(
+        label="Pressione para Download",
+        data=df_excel,
+        file_name='extract.xlsx',
+        )
 
     # ------------- Predict Rent ------------------------
 
