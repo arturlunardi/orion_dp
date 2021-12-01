@@ -245,13 +245,13 @@ if check_password("password"):
             st.dataframe(df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
             # st.write(h + bo + df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True).to_html(render_links=True, escape=False, bold_rows=False, float_format="%3s") + bc, unsafe_allow_html=True)
     
-        df_excel = to_excel(df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
+        # df_excel = to_excel(df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
 
-        st.download_button(
-        label="Pressione para Download",
-        data=df_excel,
-        file_name='extract.xlsx',
-        )
+        # st.download_button(
+        # label="Pressione para Download",
+        # data=df_excel,
+        # file_name='extract.xlsx',
+        # )
 
     # ------------- Predict Rent ------------------------
 
