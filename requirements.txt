@@ -5,3 +5,4 @@ geocoder
 google-api-python-client
 folium
 streamlit_folium
+xlsxwriter
