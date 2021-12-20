@@ -9,6 +9,7 @@ import geocoder
 from streamlit_folium import folium_static
 import folium
 from io import BytesIO
+from folium import plugins
 
 
 st.set_page_config(
@@ -166,8 +167,10 @@ if check_password("password"):
             df_oferta['suites'] = df_oferta['suites'].fillna(0)
             df_oferta['vagas_garagem'] = df_oferta['vagas_garagem'].fillna(0)
 
-            df_orion = df_oferta.loc[df_oferta['imobiliaria'] == 'Órion'].drop(columns=['latitude', 'longitude', 'alugado'])
-            df_outros = df_oferta.loc[df_oferta['imobiliaria'] != 'Órion'].drop(columns=['latitude', 'longitude', 'alugado'])
+            # df_orion = df_oferta.loc[df_oferta['imobiliaria'] == 'Órion'].drop(columns=['latitude', 'longitude', 'alugado'])
+            # df_outros = df_oferta.loc[df_oferta['imobiliaria'] != 'Órion'].drop(columns=['latitude', 'longitude', 'alugado'])
+            df_orion = df_oferta.loc[df_oferta['imobiliaria'] == 'Órion'].drop(columns=['alugado'])
+            df_outros = df_oferta.loc[df_oferta['imobiliaria'] != 'Órion'].drop(columns=['alugado'])
         
             return df_oferta, df_orion, df_outros
 
@@ -199,6 +202,14 @@ if check_password("password"):
         placeholder="Todos"
         # step=1  
         )}
+
+        filter_area = {'area_privativa': st.sidebar.slider(
+            label='Área (m²)',
+            # min_value=0.,
+            # max_value=max(df_oferta['area_privativa'].max(), df_orion['area_privativa'].max()),
+            # max_value=2000.,
+            value=[0., 2000.],
+        )}
         
         filter_garagem = {'vagas_garagem': st.sidebar.text_input(
         label='Vagas Garagem',
@@ -209,7 +220,7 @@ if check_password("password"):
 
         filter_button = st.sidebar.checkbox('Filtrar', help='Aperte o botão para filtrar os dados conforme os filtros selecionados')
 
-        filters = [filter_finalidade, filter_bairro, filter_tipologia, filter_dormitorios, filter_garagem]
+        filters = [filter_finalidade, filter_bairro, filter_tipologia, filter_dormitorios, filter_area, filter_garagem]
 
         h = '<head><style type="text/css"></style></head>'
         bo = '<body><div style = "height:400px;width:100%;overflow:auto;">'
@@ -220,13 +231,16 @@ if check_password("password"):
             for filter in filters:
                 key = [i for i in filter.keys()][0]
                 value = filter.get(key)
-                if value != 'Todos' and value != '':
+                if value != 'Todos' and value != '' and type(value) != tuple:
                     if value.isdigit():
                         df_orion = df_orion.loc[df_orion[key] == int(value)]
                         df_oferta = df_oferta.loc[df_oferta[key] == int(value)]
                     else:
                         df_orion = df_orion.loc[df_orion[key] == value]
                         df_outros = df_outros.loc[df_outros[key] == value]
+                elif type(value) == tuple:
+                        df_orion = df_orion.loc[df_orion[key].between(value[0], value[1])]
+                        df_oferta = df_oferta.loc[df_oferta[key].between(value[0], value[1])]
                 elif value == '':
                     st.sidebar.warning(f"Por favor, selecione um valor válido no campo {key.title().replace('_', ' ')}")
                     # st.stop()
@@ -244,6 +258,70 @@ if check_password("password"):
             st.header('Imóveis Concorrentes')
             st.dataframe(df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
             # st.write(h + bo + df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True).to_html(render_links=True, escape=False, bold_rows=False, float_format="%3s") + bc, unsafe_allow_html=True)
+
+        # instantiate the map
+        agenciadores_map = folium.Map(location=[-29.6837265,-53.7768193], zoom_start=12)
+
+        # instantiate a mark cluster object for the imoveis in the dataframe
+        agenciadores_clusters = plugins.MarkerCluster(options={'disableClusteringAtZoom': 16}).add_to(agenciadores_map)
+
+        # adicionando cada imóvel para o df outros
+        for lat, lng, codigo, tipologia, dormitorios, garagens, imobiliaria in zip(df_outros['latitude'], df_outros['longitude'],
+        df_outros['link'], df_outros['tipologia'], df_outros['dormitorios'], df_outros['vagas_garagem'], df_outros['imobiliaria']):
+            html=f'''
+            <body style="font-size: 10px; font-family: Verdana;">
+            <p>Tipologia: {tipologia}</p>
+            <p>Dormitórios: {int(dormitorios)}</p>
+            <p>Vagas: {int(garagens)}</p>
+            <p>Imobiliária: {imobiliaria}</p>
+            <p><a href="{codigo}" target="_blank">Abrir Imóvel</a></p>
+            </body>
+            '''
+            iframe = folium.IFrame(html, width=150, height=150)
+            popup = folium.Popup(iframe , max_width=400)
+            folium.CircleMarker(
+                [lat, lng],
+                radius=5,
+                # popup=f'<a href="https://orionsm.com.br/imovel/{codigo}" target="_blank">Abrir Imóvel</a>',
+                # popup=f'Tipologia: {tipologia}\n \
+                #     Imobiliaria: {imobiliaria}\n \
+                # <a href="{codigo}" target="_blank">Abrir Imóvel</a>',
+                popup=popup,
+                color='yellow',
+                fill=True,
+                fill_color='blue',
+                fill_opacity=0.6
+            ).add_to(agenciadores_clusters)
+
+        # adicionando cada imóvel para o df orion - em preto
+        for lat, lng, codigo, tipologia, dormitorios, garagens, imobiliaria in zip(df_orion['latitude'], df_orion['longitude'],
+        df_orion['link'], df_orion['tipologia'], df_orion['dormitorios'], df_orion['vagas_garagem'], df_orion['imobiliaria']):
+            html=f'''
+            <body style="font-size: 10px; font-family: Verdana;">
+            <p>Tipologia: {tipologia}</p>
+            <p>Dormitórios: {int(dormitorios)}</p>
+            <p>Vagas: {int(garagens)}</p>
+            <p>Imobiliária: {imobiliaria}</p>
+            <p><a href="https://orionsm.com.br/imovel/{codigo}" target="_blank">Abrir Imóvel</a></p>
+            </body>
+            '''
+            iframe = folium.IFrame(html, width=150, height=150)
+            popup = folium.Popup(iframe , max_width=400)
+            folium.CircleMarker(
+                [lat, lng],
+                radius=5,
+                # popup=f'<a href="https://orionsm.com.br/imovel/{codigo}" target="_blank">Abrir Imóvel</a>',
+                # popup=f'Tipologia: {tipologia}\n \
+                #     Imobiliaria: {imobiliaria}\n \
+                # <a href="{codigo}" target="_blank">Abrir Imóvel</a>',
+                popup=popup,
+                color='black',
+                fill=True,
+                fill_color='black',
+                fill_opacity=0.6
+            ).add_to(agenciadores_clusters)
+
+        folium_static(agenciadores_map)    
     
         # df_excel = to_excel(df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
 
