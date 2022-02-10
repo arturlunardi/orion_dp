@@ -4,6 +4,9 @@ import geocoder
 import numpy as np
 import datetime
 from dateutil.relativedelta import relativedelta
+import streamlit as st
+import json
+import requests
 
 
 def get_semestral_dates(start_last_month=True):
@@ -165,4 +168,100 @@ def get_dataset_for_scraper():
     columns = ['link', 'imobiliaria', 'area_privativa', 'finalidade', 'bairro', 'banheiros', 'dormitorios', 'latitude', 'longitude', 'mobiliado', 'suites', 'tipologia', 'vagas_garagem', 'valor_condominio', 'valor_iptu_mensal', 'sacada', 'churrasqueira', 'valor_aluguel', 'alugado']
 
     return df_merged_scraper[columns]
+
+
+def rower(data):
+    s = data.index % 2 != 0
+    s = pd.concat([pd.Series(s)] * data.shape[1], axis=1) #6 or the n of cols u have
+    z = pd.DataFrame(np.where(s, 'background-color:#f2f2f2', ''),
+                    index=data.index, columns=data.columns)
+    return z
+
+
+# @st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False)
+def get_corretores_vendas_table(type_of_report, data_inicio, data_termino):
+    if type_of_report == 'Compacto':
+        df = get_raw_data.get_comissao_corretores(compacto=True, data_inicio=data_inicio, data_termino=data_termino)
+        # df['Soma de Valor do Aluguel'] = df['Soma de Valor do Aluguel'].astype(int)
+        df['Soma de Valor do Aluguel'] = df['Soma de Valor do Aluguel'].apply(real_br_money_mask)
+    elif type_of_report == 'Detalhado':
+        df = get_raw_data.get_comissao_corretores(compacto=False, data_inicio=data_inicio, data_termino=data_termino)
+        # df['Valor do Aluguel'] = df['Valor do Aluguel'].astype(int)
+        df['Valor do Aluguel'] = df['Valor do Aluguel'].apply(real_br_money_mask)
+        df['Endereço do Imóvel'] = df['Endereço do Imóvel'].str.title()
+        df['Nome do Inquilino'] = df['Nome do Inquilino'].str.title()
+        
+    # return df.style.apply(rower, axis=None)
+    return df
+
+
+def real_br_money_mask(my_value):
+    a = '{:,.2f}'.format(float(my_value))
+    b = a.replace(',','v')
+    c = b.replace('.',',')
+    return c.replace('v','.')
+
+
+@st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False)
+def get_df_usuarios(only_vendas, only_exibir_site=True):
+    """
+    Retorna df do vista com todos os usuários de locação.
+    """
+    headers = {
+    'accept': 'application/json'
+    }
+    for page in range(1, 100):
+        if only_exibir_site:
+            if only_vendas:
+                # exclui o gerente pq no de ag comissoes aparecia o vitor e quero testar
+                # "Gerente": ["Nao"]
+                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda",  "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", {{"Equipe": ["Nome"]}}], "filter": {{"Exibirnosite": ["Sim"], "Atua\\u00e7\\u00e3oemvenda": ["Sim"], "Corretor": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
+            else:
+                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda",  "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", {{"Equipe": ["Nome"]}}], "filter": {{"Exibirnosite": ["Sim"], "Corretor": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
+        else:
+            if only_vendas:
+                # exclui o gerente pq no de ag comissoes aparecia o vitor e quero testar
+                # "Gerente": ["Nao"]
+                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda",  "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", {{"Equipe": ["Nome"]}}], "filter": {{"Atua\\u00e7\\u00e3oemvenda": ["Sim"], "Corretor": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
+            else:
+                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda",  "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", {{"Equipe": ["Nome"]}}], "filter": {{"Corretor": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
+        response = requests.get(url, headers=headers)
+        if response.content == b'[]':
+            break
+        df_usuarios = pd.DataFrame(json.loads(response.content))[1:].T
+    df_usuarios['Equipe'] = df_usuarios['Equipe'].apply(lambda x: [x[key] for key in x][0]['Nome'] if type(x) == dict else x)
+    df_usuarios.reset_index(inplace=True, drop=True)
+
+    return df_usuarios.sort_values(by="Nomecompleto")
+
+
+@st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False, allow_output_mutation=True)
+def get_agenciamentos_tables(type_of_report, data_inicio, data_termino, agenciadores_vista, dict_replace_agenciadores, type_of_status, groupby_type=None):
+    if type_of_report == 'Compacto':
+        df_vista = get_raw_data.get_vista_api(json.dumps(data_inicio), json.dumps(data_termino), json.dumps(agenciadores_vista))
+        df = get_raw_data.get_vista_api_historicos(df_vista, type_of_status)
+        df['Agenciador'] = df['Agenciador'].replace(dict_replace_agenciadores)
+        df = df.groupby(groupby_type, as_index=False).size().rename(columns={"size": "Quantidade"}).sort_values(by="Quantidade", ascending=False).reset_index(drop=True)
+    elif type_of_report == 'Detalhado':
+        df_vista = get_raw_data.get_vista_api(json.dumps(data_inicio), json.dumps(data_termino), json.dumps(agenciadores_vista))
+        df = get_raw_data.get_vista_api_historicos(df_vista, type_of_status)
+        df['Agenciador'] = df['Agenciador'].replace(dict_replace_agenciadores)
+
+    # return df.style.apply(rower, axis=None)
+    return df
+
+
+@st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False, allow_output_mutation=True)
+def get_agenciamentos_comissoes(dataframe_imoveis_locados, type_of_report, codigo_usuarios_gerente):
+    # if type_of_report == 'Compacto':
+    df = get_raw_data.get_detail_imovel_vista(dataframe_imoveis_locados, codigo_usuarios_gerente)
+    # df['Corretor'] = df['Corretor'].apply(lambda x: [dict_replace_agenciadores.get(agenciador) for agenciador in x])
+    # elif type_of_report == 'Detalhado':
+    #     pass
+
+    return df
+
+
+
+
 

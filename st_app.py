@@ -94,6 +94,12 @@ def real_br_money_mask(my_value):
     return c.replace('v','.')
 
 
+def real_br_money_mask_to_float(my_value):
+    a = my_value.replace('.','')
+    b = a.replace(',','.')
+    return float(b)
+
+
 @st.cache
 def to_excel(df):
     output = BytesIO()
@@ -110,7 +116,7 @@ if check_password("password"):
 
     condition = st.sidebar.selectbox(
         "Selecione a Aba",
-        ("Home", "Melhores Imóveis", "Previsão de Valor de Aluguel")
+        ("Home", "Melhores Imóveis", "Previsão de Valor de Aluguel", "Desempenho de Equipes", "Cálculo de Comissões")
     )
 
     # ------------- Introduction ------------------------
@@ -321,7 +327,7 @@ if check_password("password"):
                 fill_opacity=0.6
             ).add_to(agenciadores_clusters)
 
-        folium_static(agenciadores_map)    
+        folium_static(agenciadores_map, width=1420)    
     
         # df_excel = to_excel(df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
 
@@ -334,7 +340,7 @@ if check_password("password"):
     # ------------- Predict Rent ------------------------
 
     elif condition == "Previsão de Valor de Aluguel":
-        if check_password("predict_aluguel_password"):
+        if check_password("gerencia_password"):
             st.subheader("Informações sobre o Modelo")
 
             st.markdown("Esse modelo foi desenvolvido com o objetivo de prever o valor de imóveis para **Aluguel**. O modelo possui algumas limitações, são elas: <br><br>\
@@ -417,5 +423,264 @@ if check_password("password"):
                         #
                         # call to render Folium map in Streamlit
                         folium_static(m)
+
+    # ------------- Desempenho de Equipes ------------------------
+
+    elif condition == 'Desempenho de Equipes':
+        df_usuarios_vista = create_dataset.get_df_usuarios(only_vendas=False)
+
+        col_1, col_2 = st.columns(2)
+        with col_1:
+            data_inicio = st.date_input(label='Data de Início')
+        with col_2:
+            data_termino = st.date_input(label='Data de Término')
+
+        type_of_role = st.radio(label='Cargo', options=['Corretor (Apenas Locação)', 'Agenciador'])
+
+        type_of_report = st.radio(label='Tipo de Relatório', options=['Compacto', 'Detalhado'])
+
+        if type_of_role == 'Agenciador':
+            st.info("Atenção! Para um imóvel ser considerado como agenciado significa que: \n- Ele foi **criado** no Vista no período informado acima \n- Foi **disponibilizado** para o Status definido abaixo. \n - **Não é um Imóvel de Desocupação** marcado no Vista.")
+            nome_agenciadores = st.multiselect(options=df_usuarios_vista['Nomecompleto'].tolist(), label='Selecione os Agenciadores')
+            type_of_status = st.radio(label='Status', options=['Disponibilizados para Locação ou Venda', 'Disponibilizados apenas para Locação', 'Disponibilizados apenas para Venda'])
+            if type_of_report == 'Compacto':
+                groupby_type = st.selectbox(label='Selecione o tipo de agrupamento', options=['Agenciador', 'Finalidade', 'Status', 'Categoria', 'Bairro'])
+            else:
+                groupby_type=None 
+
+        submit = st.button('Calcular')
+
+        if submit:
+            with st.spinner('Carregando os dados...'):
+                if type_of_role == 'Corretor (Apenas Locação)':
+                    df_imoveis_locados = create_dataset.get_corretores_vendas_table(type_of_report, data_inicio.strftime('%Y/%m/%d'), data_termino.strftime('%Y/%m/%d'))               
+                    st.dataframe(df_imoveis_locados)
+                elif type_of_role == 'Agenciador':
+                    agenciadores_vista = df_usuarios_vista.loc[df_usuarios_vista['Nomecompleto'].isin(nome_agenciadores)]['Codigo'].tolist()
+                    dict_replace_agenciadores = df_usuarios_vista.set_index('Codigo')['Nomecompleto'].to_dict()
+                    df_agenciamentos = create_dataset.get_agenciamentos_tables(type_of_report, data_inicio.strftime('%Y-%m-%d'), data_termino.strftime('%Y-%m-%d'), agenciadores_vista, dict_replace_agenciadores, type_of_status, groupby_type)
+                    st.dataframe(df_agenciamentos)
+                    if type_of_report == 'Detalhado':
+                        # instantiate the map
+                        agenciamentos_map = folium.Map(location=[-29.6837265,-53.7768193], zoom_start=12)
+                        # instantiate a mark cluster object for the imoveis in the dataframe
+                        agenciamentos_cluster = plugins.MarkerCluster(options={'disableClusteringAtZoom': 16}).add_to(agenciamentos_map)
+                        # adicionando cada imóvel para o df outros
+                        for lat, lng, codigo, tipologia, dormitorios, garagens, valor_loc, valor_venda in zip(df_agenciamentos['Latitude'], df_agenciamentos['Longitude'], df_agenciamentos['Codigo'], df_agenciamentos['Categoria'], df_agenciamentos['Dormitorios'], df_agenciamentos['Vagas'], df_agenciamentos['ValorLocacao'], df_agenciamentos['ValorVenda']):
+                            html=f'''
+                            <body style="font-size: 10px; font-family: Verdana;">
+                            <p>Codigo: {codigo}</p>
+                            <p>Tipologia: {tipologia}</p>
+                            <p>Dormitórios: {int(dormitorios)}</p>
+                            <p>Vagas: {int(garagens)}</p>
+                            <p>Valor Locação: {valor_loc}</p>
+                            <p>Valor Venda: {valor_venda}</p>
+                            </body>
+                            '''
+                            iframe = folium.IFrame(html, width=150, height=150)
+                            popup = folium.Popup(iframe , max_width=400)
+                            folium.CircleMarker(
+                                [lat, lng],
+                                radius=5,
+                                popup=popup,
+                                color='yellow',
+                                fill=True,
+                                fill_color='blue',
+                                fill_opacity=0.6
+                            ).add_to(agenciamentos_cluster)
+
+                        folium_static(agenciamentos_map, width=1420)
+
+    # ------------- Cálculo de Comissões ------------------------
+
+    elif condition == 'Cálculo de Comissões':
+        if check_password("gerencia_password"):
+            df_usuarios_vista = create_dataset.get_df_usuarios(only_vendas=False, only_exibir_site=False)
+
+            col_1, col_2 = st.columns(2)
+            with col_1:
+                data_inicio = st.date_input(label='Data de Início')
+            with col_2:
+                data_termino = st.date_input(label='Data de Término')
+
+            type_of_role = st.radio(label='Cargo', options=['Corretor (Apenas Locação)', 'Agenciador'])
+
+            type_of_report = st.radio(label='Tipo de Relatório', options=['Compacto', 'Detalhado'])
+
+            submit = st.button('Calcular')
+
+            if submit:
+                with st.spinner('Carregando os dados...'):
+                    if type_of_role == 'Corretor (Apenas Locação)':
+                        st.subheader('Corretores de Locação')
+                        df_comissao_corretores = create_dataset.get_corretores_vendas_table(type_of_report, data_inicio.strftime('%Y/%m/%d'), data_termino.strftime('%Y/%m/%d'))
+                        corretores_que_bateram_a_meta = []
+                        
+                        if type_of_report == 'Compacto':
+                            df_comissao_corretores['comissao_corretor'] = df_comissao_corretores['Soma de Valor do Aluguel'].apply(real_br_money_mask_to_float).apply(lambda x: x*st.secrets['codigos_importantes']['comissao_corretor_meta_batida'] if x >= st.secrets["metas"]["corretores"] else x*st.secrets['codigos_importantes']['comissao_corretor_meta_nao_batida']).apply(real_br_money_mask)
+                            for corretor in df_comissao_corretores['Nome'].unique():
+                                if real_br_money_mask_to_float(df_comissao_corretores.loc[df_comissao_corretores['Nome'] == corretor]['Soma de Valor do Aluguel'].squeeze()) > st.secrets["metas"]["corretores"]:
+                                    corretores_que_bateram_a_meta.append(f"**{corretor}**")
+                        elif type_of_report == 'Detalhado':
+                            # primeiro transformo o valor do aluguel em float novamente
+                            df_comissao_corretores['Valor do Aluguel'] = df_comissao_corretores['Valor do Aluguel'].apply(real_br_money_mask_to_float)
+                            # crio um df agrupado de valor do aluguel por corretor
+                            df_agrupado = df_comissao_corretores.groupby('Nome').sum()['Valor do Aluguel']
+
+                            # agora para cada corretor, veja se o valor agrupado do aluguel é maior que a meta
+                            # se for, multiplique cada valor desse corretor por meta batida, se não meta não batida
+                            for corretor in df_comissao_corretores['Nome'].unique():
+                                if df_agrupado.loc[corretor] >= st.secrets["metas"]["corretores"]:
+                                    df_comissao_corretores.loc[df_comissao_corretores['Nome'] == corretor, 'comissao_corretor'] = df_comissao_corretores.loc[df_comissao_corretores['Nome'] == corretor]['Valor do Aluguel'].apply(lambda x: x*st.secrets['codigos_importantes']['comissao_corretor_meta_batida']).apply(real_br_money_mask)
+                                    corretores_que_bateram_a_meta.append(f"**{corretor}**")
+                                else:
+                                    df_comissao_corretores.loc[df_comissao_corretores['Nome'] == corretor, 'comissao_corretor'] = df_comissao_corretores.loc[df_comissao_corretores['Nome'] == corretor]['Valor do Aluguel'].apply(lambda x: x*st.secrets['codigos_importantes']['comissao_corretor_meta_nao_batida']).apply(real_br_money_mask) 
+                            df_comissao_corretores['Valor do Aluguel'] = df_comissao_corretores['Valor do Aluguel'].apply(real_br_money_mask)
+
+                        new_line = '\n - '
+                        if len(corretores_que_bateram_a_meta) > 0:
+                            st.success(f'Corretores que bateram a meta: {new_line}{new_line.join(corretores_que_bateram_a_meta)}')
+                        else:
+                            st.warning('Nenhum corretor bateu a meta!!!!')
+                        st.dataframe(df_comissao_corretores)
+                    
+                    elif type_of_role == 'Agenciador':
+                        st.info("Atenção! Para um imóvel ser considerado como agenciado significa que: \n- Ele foi **criado** no Vista no período informado acima \n- Foi **disponibilizado** para o Status Locação. \n - **Não é um Imóvel de Desocupação** marcado no Vista.")
+                        # a logica é essa:
+                        # para todos os imóveis locados, entre em cada imóvel e verifique os agenciadores, depois calcule em cima disso.
+                        # eu vou ter que fazer 2 métodos, o primeiro é verificar se a equipe bateu a meta de imóveis, e a outra é porcentagem em cima de locações
+                        st.subheader('Agenciadores')
+                        df_comissao_detalhado_locados_agenciadores = create_dataset.get_corretores_vendas_table(type_of_report='Detalhado', data_inicio=data_inicio.strftime('%Y/%m/%d'), data_termino=data_termino.strftime('%Y/%m/%d'))
+
+                        dict_replace_agenciadores = df_usuarios_vista.set_index('Codigo')['Nomecompleto'].to_dict()
+
+                        # to pegando os codigos de usuarios gerente pq se tiver um gerente como agenciador, não vou contabilizar ele no pagamento
+                        codigo_usuarios_gerente = df_usuarios_vista.loc[df_usuarios_vista['Gerente'] == 'Sim']['Codigo'].tolist()
+                        # retornando o dataframe com os imoveis locados e os corretores responsaveis por ele
+
+                        # na logica do algoritmo, eu calculo tudo por códigos do corretor e só depois eu troco o código pelo nome do corretor direto no dataframe/dict
+                        # tem como trocar pelo nome antes, mas isso pode dar problema se duas pessoas tiverem o nome exatamente igual.
+                        df_agenciamentos_comissoes = create_dataset.get_agenciamentos_comissoes(df_comissao_detalhado_locados_agenciadores, type_of_report, codigo_usuarios_gerente) 
+
+                        # pegando todos os usuarios do vista que fazem parte da equipe de agenciamentos
+                        df_usuarios_equipe_agenciadores = df_usuarios_vista.loc[df_usuarios_vista['Equipe'] == 'Agenciador de Imóveis']
+
+                        # ----------------- comissões de metas -----------------
+                        st.subheader('Comissões de Metas')
+                        df_agenciamentos_metas_imoveis = create_dataset.get_agenciamentos_tables(type_of_report, data_inicio.strftime('%Y-%m-%d'), data_termino.strftime('%Y-%m-%d'), df_usuarios_equipe_agenciadores['Codigo'].tolist(), dict_replace_agenciadores, 'Disponibilizados apenas para Locação', 'Agenciador')
+                        st.write(df_agenciamentos_metas_imoveis)
+                        if type_of_report == 'Compacto':
+                            # df_agenciamentos_metas_imoveis_compacto = create_dataset.get_agenciamentos_tables('Compacto', data_inicio.strftime('%Y-%m-%d'), data_termino.strftime('%Y-%m-%d'), df_usuarios_equipe_agenciadores['Codigo'].tolist(), dict_replace_agenciadores, 'Disponibilizados apenas para Locação', 'Agenciador')
+                            # st.write(df_agenciamentos_metas_imoveis_compacto)
+                            ags_feitos = df_agenciamentos_metas_imoveis["Quantidade"].sum()
+
+                        elif type_of_report == 'Detalhado':
+                            # df_agenciamentos_metas_imoveis_detalhado = create_dataset.get_agenciamentos_tables('Detalhado', data_inicio.strftime('%Y-%m-%d'), data_termino.strftime('%Y-%m-%d'), df_usuarios_equipe_agenciadores['Codigo'].tolist(), dict_replace_agenciadores, 'Disponibilizados apenas para Locação', None)
+                            ags_feitos = len(df_agenciamentos_metas_imoveis)
+
+                        if ags_feitos >= st.secrets["codigos_importantes"]["meta_agenciamentos_locacao"]:
+                            st.success(f'Parabéns, a meta foi batida! Foram agenciados **{ags_feitos} imóveis** e a meta é de **{st.secrets["codigos_importantes"]["meta_agenciamentos_locacao"]} imóveis**.')
+                        else:
+                            st.warning(f"Infelizmente a meta de agenciamentos não foi alcançada. Foram agenciados **{ags_feitos} imóveis** e a meta é de **{st.secrets['codigos_importantes']['meta_agenciamentos_locacao']} imóveis**.")
+
+                        # --------------------- comissões de locados --------------------------
+                        st.subheader('Comissões de Imóveis Locados')
+
+                        st.info(f"Foram locados **{len(df_comissao_detalhado_locados_agenciadores)} imóveis** no período entre **{data_inicio.strftime('%Y-%m-%d')}** e **{data_termino.strftime('%Y-%m-%d')}**.")
+                        
+                        comissao_agenciadores = {}
+                        # print('run nova')
+
+                        # para todos os imóveis locados.
+                        for imovel in df_comissao_detalhado_locados_agenciadores['cod_crm']:
+                            imovel_no_vista = df_agenciamentos_comissoes.loc[df_agenciamentos_comissoes['Codigo'] == imovel]
+                            # pegue o valor do imóvel
+                            valor_imovel = real_br_money_mask_to_float(df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel]['Valor do Aluguel'].squeeze())
+                            # pegue todos os agenciadores do imóvel em formato de lista
+                            agenciadores = imovel_no_vista['Corretor'].squeeze()
+
+                            # aqui estou transformando os codigos em nomes pra ficar mais legível pro pessoal
+                            # agenciadores = [dict_replace_agenciadores.get(agenciador) for agenciador in agenciadores]
+                            # codigo_lider = dict_replace_agenciadores.get(st.secrets['codigos_importantes']['lider'])
+
+                            codigo_lider = st.secrets['codigos_importantes']['lider']
+
+                            # pegando os valores de cada colaborador
+                            valor_lider = st.secrets['codigos_importantes']['lider_valor_cheio'] if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao" else st.secrets['codigos_importantes']['lider_valor_passivo_desocupacao']
+                            valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_cheio'] if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao" else st.secrets['codigos_importantes']['agenciadores_passivo_desocupacao']
+
+                            # aqui eu to usando o nomecompleto pq no dict replace agenciadores tb usei nome completo
+                            # lider_ganha = any([True for x in agenciadores if x in df_usuarios_equipe_agenciadores['Nomecompleto'].unique().tolist()])
+                            # se nenhum corretor da equipe agenciadores estiver no imóvel, o lider também não ganha
+                            lider_ganha = any([True for x in agenciadores if x in df_usuarios_equipe_agenciadores['Codigo'].unique().tolist()])
+                            
+                            # print({imovel: comissao_agenciadores.get('29'), "antes": True})
+
+                            # se o lider n estiver no dict, crie a chave e forneça o valor do lider
+                            if not codigo_lider in comissao_agenciadores:
+                                comissao_agenciadores[codigo_lider] = valor_imovel * valor_lider if lider_ganha else 0
+                            # caso já exista, incremente o valor do lider
+                            else:
+                                comissao_agenciadores[codigo_lider] += valor_imovel * valor_lider if lider_ganha else 0
+
+                            # para cada agenciador, verifique se ele está no dict, se não, crie a chave e forneça o valor do agenciador
+                            for agenciador in agenciadores:
+                                if not agenciador in comissao_agenciadores:
+                                    comissao_agenciadores[agenciador] = valor_imovel * valor_agenciador / len(agenciadores)
+                                # caso já exista, incremente o valor do agenciador
+                                else:
+                                    comissao_agenciadores[agenciador] += valor_imovel * valor_agenciador / len(agenciadores)
+
+                            # print({imovel: comissao_agenciadores.get('29'), "antes": False})
+
+                            # só pra eu ver se deu certo
+                            # nao faço mais com json dumps pq eu uso o dict pra explodir no dataframe
+                            # df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel, 'comissao_lider'] = json.dumps({codigo_lider: valor_imovel * valor_lider if lider_ganha else 0})
+                            # df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel, 'comissao_agenciadores'] = json.dumps({agenciador: round(valor_imovel * valor_agenciador / len(agenciadores), 3) for agenciador in agenciadores})
+                            df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel, 'comissao_lider'] = [{codigo_lider: valor_imovel * valor_lider if lider_ganha else 0}]
+                            df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel, 'comissao_agenciadores'] = [{agenciador: round(valor_imovel * valor_agenciador / len(agenciadores), 3) for agenciador in agenciadores}]
+                            print([{agenciador: round(valor_imovel * valor_agenciador / len(agenciadores), 3) for agenciador in agenciadores}])
+
+                        def change_dict_key(dictionary):
+                            # print(f"before {dictionary}")
+                            if type(dictionary) == str:
+                                dictionary = eval(dictionary)
+                            for key in dictionary.copy():
+                                dictionary[dict_replace_agenciadores.get(key)] = dictionary.pop(key)
+                            # print(f"after {dictionary}")
+                            return dictionary
+
+                        # isso aqui fica visualmente feio pq aparentemente os dicionarios em uma coluna pandas tem que ter o mesmo tamanho, e fica nome de corretor: null
+                        # df_comissao_detalhado_locados_agenciadores['comissao_agenciadores'] = df_comissao_detalhado_locados_agenciadores['comissao_agenciadores'].apply(change_dict_key)
+                        # df_comissao_detalhado_locados_agenciadores['comissao_agenciadores'] = df_comissao_detalhado_locados_agenciadores['comissao_agenciadores'].apply(lambda x: {dict_replace_agenciadores.get(key): value for key, value in x.items()})
+                    
+                        for column in ['comissao_lider', 'comissao_agenciadores']:
+                            # st.write(pd.concat([df_comissao_detalhado_locados_agenciadores.drop(['comissao_agenciadores'], axis=1), pd.json_normalize(df_comissao_detalhado_locados_agenciadores['comissao_agenciadores'])], axis=1))
+                            df_comissao_detalhado_locados_agenciadores = df_comissao_detalhado_locados_agenciadores.join(pd.json_normalize(df_comissao_detalhado_locados_agenciadores[column]), lsuffix='_lider').drop([column], axis=1)
+                            if column == 'comissao_lider':
+                                df_comissao_detalhado_locados_agenciadores = df_comissao_detalhado_locados_agenciadores.rename(columns={codigo_lider: "Lider"})
+                            else:
+                                df_comissao_detalhado_locados_agenciadores = df_comissao_detalhado_locados_agenciadores.rename(columns=dict_replace_agenciadores)
+
+                        comissao_agenciadores = change_dict_key(comissao_agenciadores)
+
+                        df_comissao_compacto_locados_agenciadores = pd.DataFrame.from_dict(comissao_agenciadores, orient='index').reset_index().rename(columns={"index": "Agenciador", 0: "Valor de Comissão"})
+                        df_comissao_compacto_locados_agenciadores['Valor de Comissão'] = df_comissao_compacto_locados_agenciadores['Valor de Comissão'].apply(real_br_money_mask)
+                        if type_of_report == 'Detalhado':
+                            st.write(df_comissao_detalhado_locados_agenciadores)
+                        elif type_of_report == 'Compacto':
+                            st.write(df_comissao_compacto_locados_agenciadores)
+                        
+
+
+
+
+
+
+
+
+                        
+
+            
 
 
