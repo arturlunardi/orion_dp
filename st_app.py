@@ -662,6 +662,9 @@ if check_password("password"):
                             else:
                                 df_comissao_detalhado_locados_agenciadores = df_comissao_detalhado_locados_agenciadores.rename(columns=dict_replace_agenciadores)
 
+                        for column in df_comissao_detalhado_locados_agenciadores.iloc[:, 5:].columns:
+                            df_comissao_detalhado_locados_agenciadores[column] = df_comissao_detalhado_locados_agenciadores[column].apply(lambda x: real_br_money_mask(x).replace('nan', '0, 00'))
+
                         comissao_agenciadores = change_dict_key(comissao_agenciadores)
 
                         df_comissao_compacto_locados_agenciadores = pd.DataFrame.from_dict(comissao_agenciadores, orient='index').reset_index().rename(columns={"index": "Agenciador", 0: "Valor de Comissão"})
@@ -671,16 +674,3 @@ if check_password("password"):
                         elif type_of_report == 'Compacto':
                             st.write(df_comissao_compacto_locados_agenciadores)
                         
-
-
-
-
-
-
-
-
-                        
-
-            
-
-
