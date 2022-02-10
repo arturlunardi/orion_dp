@@ -663,7 +663,7 @@ if check_password("password"):
                                 df_comissao_detalhado_locados_agenciadores = df_comissao_detalhado_locados_agenciadores.rename(columns=dict_replace_agenciadores)
 
                         for column in df_comissao_detalhado_locados_agenciadores.iloc[:, 5:].columns:
-                            df_comissao_detalhado_locados_agenciadores[column] = df_comissao_detalhado_locados_agenciadores[column].apply(lambda x: real_br_money_mask(x).replace('nan', '0, 00'))
+                            df_comissao_detalhado_locados_agenciadores[column] = df_comissao_detalhado_locados_agenciadores[column].apply(lambda x: real_br_money_mask(x).replace('nan', '0,00'))
 
                         comissao_agenciadores = change_dict_key(comissao_agenciadores)
 
