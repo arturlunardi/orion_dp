@@ -583,12 +583,13 @@ if check_password("password"):
 
                         if ags_feitos >= st.secrets["codigos_importantes"]["meta_agenciamentos_locacao"]:
                             st.success(f'Parabéns, a meta foi batida! Foram agenciados **{ags_feitos} imóveis** e a meta é de **{st.secrets["codigos_importantes"]["meta_agenciamentos_locacao"]} imóveis**.')
-                            df_agenciamentos_metas_imoveis['Valor da Comissão'] = real_br_money_mask(st.secrets["codigos_importantes"]["comissao_agenciadores_meta_imoveis"])
+                            if type_of_report == 'Compacto':
+                                df_agenciamentos_metas_imoveis['Valor da Comissão'] = real_br_money_mask(st.secrets["codigos_importantes"]["comissao_agenciadores_meta_imoveis"])
                         else:
                             st.warning(f"Infelizmente a meta de agenciamentos não foi alcançada. Foram agenciados **{ags_feitos} imóveis** e a meta é de **{st.secrets['codigos_importantes']['meta_agenciamentos_locacao']} imóveis**.")
-                            st.write()
-                            df_agenciamentos_metas_imoveis['Valor da Comissão'] = real_br_money_mask(st.secrets["codigos_importantes"]["comissao_agenciadores_meta_nao_batida_imoveis"])
-
+                            if type_of_report == 'Compacto':
+                                df_agenciamentos_metas_imoveis['Valor da Comissão'] = real_br_money_mask(st.secrets["codigos_importantes"]["comissao_agenciadores_meta_nao_batida_imoveis"])
+                            
                         st.write(df_agenciamentos_metas_imoveis)
 
                         # --------------------- comissões de locados --------------------------
