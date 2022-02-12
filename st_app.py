@@ -565,10 +565,13 @@ if check_password("password"):
                         # pegando todos os usuarios do vista que fazem parte da equipe de agenciamentos
                         df_usuarios_equipe_agenciadores = df_usuarios_vista.loc[df_usuarios_vista['Equipe'] == 'Agenciador de Imóveis']
 
+                        # pegando todos os usuarios do vista que fazem parte da equipe de agenciamentos
+                        df_usuarios_equipe_vendas = df_usuarios_vista.loc[df_usuarios_vista['Equipe'] == 'Vendas']
+
                         # ----------------- comissões de metas -----------------
                         st.subheader('Comissões de Metas')
                         df_agenciamentos_metas_imoveis = create_dataset.get_agenciamentos_tables(type_of_report, data_inicio.strftime('%Y-%m-%d'), data_termino.strftime('%Y-%m-%d'), df_usuarios_equipe_agenciadores['Codigo'].tolist(), dict_replace_agenciadores, 'Disponibilizados apenas para Locação', 'Agenciador')
-                        st.write(df_agenciamentos_metas_imoveis)
+                    
                         if type_of_report == 'Compacto':
                             # df_agenciamentos_metas_imoveis_compacto = create_dataset.get_agenciamentos_tables('Compacto', data_inicio.strftime('%Y-%m-%d'), data_termino.strftime('%Y-%m-%d'), df_usuarios_equipe_agenciadores['Codigo'].tolist(), dict_replace_agenciadores, 'Disponibilizados apenas para Locação', 'Agenciador')
                             # st.write(df_agenciamentos_metas_imoveis_compacto)
@@ -580,8 +583,13 @@ if check_password("password"):
 
                         if ags_feitos >= st.secrets["codigos_importantes"]["meta_agenciamentos_locacao"]:
                             st.success(f'Parabéns, a meta foi batida! Foram agenciados **{ags_feitos} imóveis** e a meta é de **{st.secrets["codigos_importantes"]["meta_agenciamentos_locacao"]} imóveis**.')
+                            df_agenciamentos_metas_imoveis['Valor da Comissão'] = real_br_money_mask(st.secrets["codigos_importantes"]["comissao_agenciadores_meta_imoveis"])
                         else:
                             st.warning(f"Infelizmente a meta de agenciamentos não foi alcançada. Foram agenciados **{ags_feitos} imóveis** e a meta é de **{st.secrets['codigos_importantes']['meta_agenciamentos_locacao']} imóveis**.")
+                            st.write()
+                            df_agenciamentos_metas_imoveis['Valor da Comissão'] = real_br_money_mask(st.secrets["codigos_importantes"]["comissao_agenciadores_meta_nao_batida_imoveis"])
+
+                        st.write(df_agenciamentos_metas_imoveis)
 
                         # --------------------- comissões de locados --------------------------
                         st.subheader('Comissões de Imóveis Locados')
@@ -611,8 +619,8 @@ if check_password("password"):
 
                             # aqui eu to usando o nomecompleto pq no dict replace agenciadores tb usei nome completo
                             # lider_ganha = any([True for x in agenciadores if x in df_usuarios_equipe_agenciadores['Nomecompleto'].unique().tolist()])
-                            # se nenhum corretor da equipe agenciadores estiver no imóvel, o lider também não ganha
-                            lider_ganha = any([True for x in agenciadores if x in df_usuarios_equipe_agenciadores['Codigo'].unique().tolist()])
+                            # se nenhum corretor da equipe agenciadores ou vendas estiver no imóvel, o lider também não ganha
+                            lider_ganha = any([True for x in agenciadores if x in df_usuarios_equipe_agenciadores['Codigo'].unique().tolist() or x in df_usuarios_equipe_vendas['Codigo'].unique().tolist()])
                             
                             # print({imovel: comissao_agenciadores.get('29'), "antes": True})
 
