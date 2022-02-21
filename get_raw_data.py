@@ -158,19 +158,21 @@ def get_vista_api_historicos(dataframe, type_of_status):
             response = requests.get(url, headers=headers)
             
             if response.status_code == 200:
-                # print(imovel, response)
 
-                df_imovel = pd.DataFrame(json.loads(response.content))
+                if len(json.loads(response.content)['prontuarios']) > 0:
+                    df_imovel = pd.DataFrame(json.loads(response.content))
+                else:
+                    df_imovel = pd.DataFrame([json.loads(response.content)])
                 df_imovel = df_imovel.dropna(subset=['prontuarios'])
                 # aqui estamos buscando em todo os históricos do imóvel os que correspondem a cada assunto, isso gera um dataframe com todos os históricos do imóvel
                 # cada linha representa um historico, então existem linhas que possuem datas preenchidas e outras não, por isso temos que dropar os nulos e pegar o último
                 # df_imovel['data_ultima_disponibilidade'] = df_imovel['prontuarios'].apply(lambda x: x['Data'] if x['Assunto'] == 'Colocado para locação' else None)
                 if type_of_status == 'Disponibilizados apenas para Locação':
-                    df_imovel['data_ultima_disponibilidade'] = df_imovel['prontuarios'].apply(lambda x: x['Data'] if x['Assunto'] == 'Colocado para locação' else None)
+                    df_imovel['data_ultima_disponibilidade'] = df_imovel['prontuarios'].apply(lambda x: x['Data'] if type(x) == dict and x['Assunto'] == 'Colocado para locação' else None)
                 elif type_of_status == 'Disponibilizados apenas para Venda':
-                    df_imovel['data_ultima_disponibilidade'] = df_imovel['prontuarios'].apply(lambda x: x['Data'] if x['Assunto'] == 'Colocado para venda' else None)
+                    df_imovel['data_ultima_disponibilidade'] = df_imovel['prontuarios'].apply(lambda x: x['Data'] if type(x) == dict and x['Assunto'] == 'Colocado para venda' else None)
                 elif type_of_status == 'Disponibilizados para Locação ou Venda':
-                    df_imovel['data_ultima_disponibilidade'] = df_imovel['prontuarios'].apply(lambda x: x['Data'] if x['Assunto'] == 'Colocado para locação' or x['Assunto'] == 'Colocado para venda' else None)
+                    df_imovel['data_ultima_disponibilidade'] = df_imovel['prontuarios'].apply(lambda x: x['Data'] if type(x) == dict and x['Assunto'] == 'Colocado para locação' or type(x) == dict and x['Assunto'] == 'Colocado para venda' else None)
 
                 df_geral = df_geral.append(df_imovel).reset_index(drop=True)
 
