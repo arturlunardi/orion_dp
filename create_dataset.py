@@ -202,7 +202,7 @@ def real_br_money_mask(my_value):
     return c.replace('v','.')
 
 
-@st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False)
+# @st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False)
 def get_df_usuarios(only_vendas, only_exibir_site=True):
     """
     Retorna df do vista com todos os usuários de locação.
