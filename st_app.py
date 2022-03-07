@@ -428,6 +428,7 @@ if check_password("password"):
 
     elif condition == 'Desempenho de Equipes':
         df_usuarios_vista = create_dataset.get_df_usuarios(only_vendas=False)
+        # df_usuarios_vista = create_dataset.get_df_usuarios(only_vendas=False, only_exibir_site=False)
 
         col_1, col_2 = st.columns(2)
         with col_1:
@@ -495,7 +496,8 @@ if check_password("password"):
 
     elif condition == 'Cálculo de Comissões':
         if check_password("gerencia_password"):
-            df_usuarios_vista = create_dataset.get_df_usuarios(only_vendas=False, only_exibir_site=False)
+            df_usuarios_vista = create_dataset.get_df_usuarios(only_vendas=False, only_exibir_site=True)
+            # df_usuarios_vista_ativos = create_dataset.get_df_usuarios(only_vendas=False, only_exibir_site=True)
 
             col_1, col_2 = st.columns(2)
             with col_1:
@@ -556,6 +558,7 @@ if check_password("password"):
 
                         # to pegando os codigos de usuarios gerente pq se tiver um gerente como agenciador, não vou contabilizar ele no pagamento
                         codigo_usuarios_gerente = df_usuarios_vista.loc[df_usuarios_vista['Gerente'] == 'Sim']['Codigo'].tolist()
+
                         # retornando o dataframe com os imoveis locados e os corretores responsaveis por ele
 
                         # na logica do algoritmo, eu calculo tudo por códigos do corretor e só depois eu troco o código pelo nome do corretor direto no dataframe/dict
@@ -565,7 +568,7 @@ if check_password("password"):
                         # pegando todos os usuarios do vista que fazem parte da equipe de agenciamentos
                         df_usuarios_equipe_agenciadores = df_usuarios_vista.loc[df_usuarios_vista['Equipe'] == 'Agenciador de Imóveis']
 
-                        # pegando todos os usuarios do vista que fazem parte da equipe de agenciamentos
+                        # pegando todos os usuarios do vista que fazem parte da equipe de vendas
                         df_usuarios_equipe_vendas = df_usuarios_vista.loc[df_usuarios_vista['Equipe'] == 'Vendas']
 
                         # ----------------- comissões de metas -----------------
@@ -607,6 +610,9 @@ if check_password("password"):
                             valor_imovel = real_br_money_mask_to_float(df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel]['Valor do Aluguel'].squeeze())
                             # pegue todos os agenciadores do imóvel em formato de lista
                             agenciadores = imovel_no_vista['Corretor'].squeeze()
+
+                            # aqui eu to filtrando os agenciadores somente para aqueles que estão dentro dos usuarios ativos do vista
+                            agenciadores = [x for x in agenciadores if x in df_usuarios_vista['Codigo'].tolist()]
 
                             # aqui estou transformando os codigos em nomes pra ficar mais legível pro pessoal
                             # agenciadores = [dict_replace_agenciadores.get(agenciador) for agenciador in agenciadores]
