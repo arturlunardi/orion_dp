@@ -235,7 +235,7 @@ def get_df_usuarios(only_vendas, only_exibir_site=True):
     return df_usuarios.sort_values(by="Nomecompleto")
 
 
-@st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False, allow_output_mutation=True)
+# @st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False, allow_output_mutation=True)
 def get_agenciamentos_tables(type_of_report, data_inicio, data_termino, agenciadores_vista, dict_replace_agenciadores, type_of_status, groupby_type=None):
     if type_of_report == 'Compacto':
         df_vista = get_raw_data.get_vista_api(json.dumps(data_inicio), json.dumps(data_termino), json.dumps(agenciadores_vista))
@@ -251,7 +251,7 @@ def get_agenciamentos_tables(type_of_report, data_inicio, data_termino, agenciad
     return df
 
 
-@st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False, allow_output_mutation=True)
+# @st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False, allow_output_mutation=True)
 def get_agenciamentos_comissoes(dataframe_imoveis_locados, type_of_report, codigo_usuarios_gerente):
     # if type_of_report == 'Compacto':
     df = get_raw_data.get_detail_imovel_vista(dataframe_imoveis_locados, codigo_usuarios_gerente)

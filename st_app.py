@@ -612,6 +612,7 @@ if check_password("password"):
                             agenciadores = imovel_no_vista['Corretor'].squeeze()
 
                             # aqui eu to filtrando os agenciadores somente para aqueles que estão dentro dos usuarios ativos do vista
+                            # pq como eu pego os corretores de imovel por imovel, pode acontecer de vir um corretor que não faz parte da empresa mais mas que está vinculado ao imóvel
                             agenciadores = [x for x in agenciadores if x in df_usuarios_vista['Codigo'].tolist()]
 
                             # aqui estou transformando os codigos em nomes pra ficar mais legível pro pessoal
