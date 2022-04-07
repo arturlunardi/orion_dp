@@ -10,6 +10,7 @@ from streamlit_folium import folium_static
 import folium
 from io import BytesIO
 from folium import plugins
+import integrate
 
 
 st.set_page_config(
@@ -116,7 +117,7 @@ if check_password("password"):
 
     condition = st.sidebar.selectbox(
         "Selecione a Aba",
-        ("Home", "Melhores Imóveis", "Previsão de Valor de Aluguel", "Desempenho de Equipes", "Cálculo de Comissões")
+        ("Home", "Melhores Imóveis", "Previsão de Valor de Aluguel", "Desempenho de Equipes", "Cálculo de Comissões", "Criação Imóvel Sami/Vista")
     )
 
     # ------------- Introduction ------------------------
@@ -689,4 +690,19 @@ if check_password("password"):
                             st.write(df_comissao_detalhado_locados_agenciadores)
                         elif type_of_report == 'Compacto':
                             st.write(df_comissao_compacto_locados_agenciadores)
+
+    # ------------- Criação Imóvel Sami/Vista ------------------------
+
+    elif condition == 'Criação Imóvel Sami/Vista':
+        if check_password("gerencia_password"):
+            cod_imovel_vista = st.number_input("Digite o código do imóvel no Vista", help='Esse imóvel será criado no Sami e editado com os dados do Vista', step=1)
+            criar_imovel = st.checkbox(label='Criar o imóvel', value=False)
+            
+            if criar_imovel:
+                cod_imovel_sami_criado = integrate.duplicate_imovel_sami()
+                cod_imovel_sami = st.number_input(f"O código criado no Sami foi: {cod_imovel_sami_criado}, digite-o abaixo para confirmar a edição", help='Esse imóvel será criado no Sami e editado com os dados do Vista', step=1)
+                st.write(f'O código do imóvel no Sami é {cod_imovel_sami}')
+                integrate.edit_imovel_sami(cod_imovel_vista=str(cod_imovel_vista), cod_imovel_sami=str(cod_imovel_sami))
+
+                
                         
