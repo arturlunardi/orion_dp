@@ -696,13 +696,18 @@ if check_password("password"):
     elif condition == 'Criação Imóvel Sami/Vista':
         if check_password("gerencia_password"):
             cod_imovel_vista = st.number_input("Digite o código do imóvel no Vista", help='Esse imóvel será criado no Sami e editado com os dados do Vista', step=1)
-            criar_imovel = st.checkbox(label='Criar o imóvel', value=False)
+            opcao = st.selectbox("Escolha a opção", ["Criar Imóvel", "Editar Imóvel"])
             
-            if criar_imovel:
-                cod_imovel_sami_criado = integrate.duplicate_imovel_sami()
-                cod_imovel_sami = st.number_input(f"O código criado no Sami foi: {cod_imovel_sami_criado}, digite-o abaixo para confirmar a edição", help='Esse imóvel será criado no Sami e editado com os dados do Vista', step=1)
-                st.write(f'O código do imóvel no Sami é {cod_imovel_sami}')
-                integrate.edit_imovel_sami(cod_imovel_vista=str(cod_imovel_vista), cod_imovel_sami=str(cod_imovel_sami))
+            if opcao == 'Criar Imóvel':
+                botao_criar = st.button("Criar Imóvel")
+                if botao_criar:
+                    cod_imovel_sami_criado = integrate.duplicate_imovel_sami()
+                    st.write(f'O código do imóvel no Sami é {cod_imovel_sami_criado}')
+            elif opcao == 'Editar Imóvel':
+                cod_imovel_sami = st.number_input(f"Digite o código criado no Sami para confirmar a edição", help='Esse imóvel será criado no Sami e editado com os dados do Vista', step=1)
+                botao_editar = st.button("Editar Imóvel")
+                if botao_editar:
+                    integrate.edit_imovel_sami(cod_imovel_vista=str(cod_imovel_vista), cod_imovel_sami=str(cod_imovel_sami))
 
                 
                         

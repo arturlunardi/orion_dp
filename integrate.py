@@ -95,32 +95,34 @@ def edit_imovel_sami(cod_imovel_vista, cod_imovel_sami):
 
     st.write(imovel_vista)
 
-    confirmou_dados_imovel = st.checkbox(label='Confirmar e alterar o imóvel', value=False)
+    # confirmou_dados_imovel = st.checkbox(label='Confirmar e alterar o imóvel', value=False)
 
-    if confirmou_dados_imovel:
-        numerical_columns = ["Bairro", "Categoria", "Cidade"]
-        try:
-            for column in numerical_columns:
-                if not str(imovel_vista.iloc[0][column]).isdigit():
-                    raise Exception(f"A coluna {column} não é numérica, verifique os dados.")
-        except Exception as error:
-            print(error)
+    # if confirmou_dados_imovel:
+    numerical_columns = ["Bairro", "Categoria", "Cidade"]
+    try:
+        for column in numerical_columns:
+            if not str(imovel_vista.iloc[0][column]).isdigit():
+                raise Exception(f"A coluna {column} não é numérica, verifique os dados.")
+    except Exception as error:
+        print(error)
 
-        for column in imovel_vista.columns:
-            imovel_vista[column] = imovel_vista[column].astype(str)
+    for column in imovel_vista.columns:
+        imovel_vista[column] = imovel_vista[column].astype(str)
 
-        columns_to_edit = st.secrets["columns_to_edit_sami_vista"]
+    columns_to_edit = st.secrets["columns_to_edit_sami_vista"]
 
-        sql_update_set = [f'{columns_to_edit.get(column)} = %s' for column in columns_to_edit if column != "CodigoSami"]
+    # sql_update_set = [f'{columns_to_edit.get(column)} = %s' for column in columns_to_edit if column != "CodigoSami"]
 
-        sql_update = st.secrets["sql_update"].replace("sql_update_set", str(sql_update_set)).replace("'", "").replace("[", "").replace("]", "")
+    sql_update_set = [f'{columns_to_edit.get(column)} = %s' for column in columns_to_edit]
 
-        con = conectar_sami()
-        cursor = con.cursor()
+    sql_update = st.secrets["sql_update"].replace("sql_update_set", str(sql_update_set)).replace("'", "").replace("[", "").replace("]", "")
 
-        cursor.execute(sql_update, tuple(imovel_vista[columns_to_edit.keys()].iloc[0].values))
+    con = conectar_sami()
+    cursor = con.cursor()
 
-        con.commit()
-        con.close()
+    cursor.execute(sql_update, tuple(imovel_vista[columns_to_edit.keys()].iloc[0].values) + tuple(imovel_vista["CodigoSami"]))
 
-        st.success('Editado com sucesso.')
+    con.commit()
+    con.close()
+
+    st.success('Editado com sucesso.')
