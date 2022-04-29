@@ -285,3 +285,66 @@ def get_detail_imovel_vista(dataframe, codigo_usuarios_gerente):
     # -----------------------------------------------
 
     return df_geral
+
+
+def get_df_lancamentos_sami(tipo_seguro: str, data_referencia: datetime.date, seguradora: str) -> dict:
+    """
+    Essa função retorna um dicionário de DataFrames. Nele teremos dataframes com dados sobre
+    os lançamentos de cada imóvel de acordo com o código do evento.
+
+    Args:
+        tipo_seguro (str): Tipo de seguro, incêndio ou fiança.
+        data_referencia (datetime.date): Data de referência do boleto.
+        seguradora (str): Seguradora para verificar se tem CPF no dataframe.
+
+    Returns:
+        dict: Um dicionário de dataframes.
+    """    
+
+    if tipo_seguro == "Incêndio":
+        cod_evento_taxa = "1058"
+        tipo_pessoa = "Inquilino"
+    elif tipo_seguro == "Fiança":
+        cod_evento_taxa = "1096"
+        if seguradora in ["Pottencial", "Liberty", "Alfa"]:
+            tipo_pessoa = "Inquilino"
+        elif seguradora in ["Porto Seguro", "Tokio"]:
+            tipo_pessoa = "Proprietario"
+
+    mes_referencia = data_referencia.strftime('%Y%m')
+
+    # Basicamente serão 2 dataframes. O primeiro eu verificarei se o evento foi lançado no Sami para o determinado imóvel.
+    # Caso não identifiquemos o lançamento no imóvel, eu vou identificar o CPF do locatário/proprietário e juntá-lo a algum imóvel que tenha o mesmo CPF para assim buscar os dados do imóvel.
+    
+    if tipo_pessoa == "Inquilino":
+        # esse df me retorna todos os lançamentos de um evento específico para contratos ativos
+        # ele retorna o numero do contrato, numero do imóvel e o locatário
+        df_checar_lancamento = pd.read_sql_query(f"""
+        {st.secrets["get_df_lancamentos_evento_sami"]["inquilino"].replace('mes_referencia', mes_referencia).replace('cod_evento_taxa', cod_evento_taxa)}
+        """, conectar_sami()
+        )
+
+        df_identificar_imovel = pd.read_sql_query(f"""
+        {st.secrets["get_df_identificar_imovel_sami"]["inquilino"]}
+        """, conectar_sami()
+        )
+
+
+    elif tipo_pessoa == "Proprietario":
+        # esse df me retorna todos os lançamentos de um evento específico para contratos ativos
+        # ele retorna o numero do contrato, numero do imóvel e o proprietário
+        # é importante frisar que ele só capta 1 proprietário por imóvel, então se houver mais de um proprietário, ele vai pegar o primeiro
+        df_checar_lancamento = pd.read_sql_query(f"""
+        {st.secrets["get_df_lancamentos_evento_sami"]["proprietario"].replace('mes_referencia', mes_referencia).replace('cod_evento_taxa', cod_evento_taxa)}
+        """, conectar_sami()
+        )
+
+        # ja esse df me retorna TODOS os proprietários de TODOS os imóveis que já possuiram contrato, inclusive o imóvel vem duplicado se houver mais de um contrato para o mesmo imóvel
+        # eu escolhi retirar o contratos ativos pq ele limita e pode n aparecer
+        # depois eu posso retirar se encontrarmos erros ou ficar mt grande o df
+        df_identificar_imovel = pd.read_sql_query(f"""
+        {st.secrets["get_df_identificar_imovel_sami"]["proprietario"]}
+        """, conectar_sami()
+        )
+
+    return {"df_checar_lancamento": df_checar_lancamento, "df_identificar_imovel": df_identificar_imovel}

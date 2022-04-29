@@ -11,6 +11,12 @@ import folium
 from io import BytesIO
 from folium import plugins
 import integrate
+import tabula
+import re
+from dateutil.relativedelta import relativedelta
+import datetime
+import seguros
+import get_raw_data
 
 
 st.set_page_config(
@@ -117,7 +123,7 @@ if check_password("password"):
 
     condition = st.sidebar.selectbox(
         "Selecione a Aba",
-        ("Home", "Melhores Imóveis", "Previsão de Valor de Aluguel", "Desempenho de Equipes", "Cálculo de Comissões", "Criação Imóvel Sami/Vista")
+        ("Home", "Melhores Imóveis", "Previsão de Valor de Aluguel", "Desempenho de Equipes", "Cálculo de Comissões", "Criação Imóvel Sami/Vista", "Conferência de Seguros")
     )
 
     # ------------- Introduction ------------------------
@@ -709,5 +715,45 @@ if check_password("password"):
                 if botao_editar:
                     integrate.edit_imovel_sami(cod_imovel_vista=str(cod_imovel_vista), cod_imovel_sami=str(cod_imovel_sami))
 
-                
-                        
+
+    # ------------- Conferência de Seguros ------------------------
+
+    elif condition == 'Conferência de Seguros':
+        if check_password("gerencia_password"):
+            tipo_seguro = st.selectbox("Escolha o tipo de seguro", ["Fiança", "Incêndio"])
+            if tipo_seguro == 'Fiança':
+                seguradora = st.selectbox("Escolha a seguradora", ["Pottencial", "Porto Seguro", "Tokio", "Liberty"], help="Cada seguradora possui uma estrutura diferente, por isso é necessário informar.")
+            elif tipo_seguro == 'Incêndio':
+                seguradora = "Alfa"
+            now = datetime.datetime.now()
+            data_referencia = st.date_input("Escolha o mês de referência desse boleto.", datetime.date(now.year, now.month-1, 1))
+
+            pdf_seguro = st.file_uploader(label='Anexe o pdf do seguro.', accept_multiple_files=True)
+            submitted = st.button("Enviar")
+            if submitted:
+                df_boleto_seguro = seguros.get_df_boleto_seguro(tipo_seguro=tipo_seguro, seguradora=seguradora, pdf_seguro=pdf_seguro)
+                st.write(df_boleto_seguro)
+                dict_dfs_lancamento = get_raw_data.get_df_lancamentos_sami(tipo_seguro=tipo_seguro, data_referencia=data_referencia, seguradora=seguradora)
+
+                if seguradora in ["Pottencial", "Liberty", "Alfa"]:
+                    df_to_check = df_boleto_seguro.loc[~(df_boleto_seguro["CPF_Inquilino"].isin(dict_dfs_lancamento["df_checar_lancamento"]["CPF"]))].merge(dict_dfs_lancamento["df_identificar_imovel"], left_on="CPF_Inquilino", right_on="CPF", how="left")
+                elif seguradora in ["Porto Seguro"]:
+                    df_to_check = df_boleto_seguro.loc[~(df_boleto_seguro["CPF_Proprietario"].isin(dict_dfs_lancamento["df_checar_lancamento"]["CPF"]))].merge(dict_dfs_lancamento["df_identificar_imovel"], left_on="CPF_Proprietario", right_on="CPF", how="left")
+                elif seguradora in ["Tokio"]:
+                    # para o tokio é o seguinte, não existe cpf do proprietário. então eu faço um merge na tabela de proprietario pelo nome mesmo
+                    # e depois eu pesquiso se esse cpf está no df lancamentos
+                    df_tokio_merged = df_boleto_seguro.merge(dict_dfs_lancamento["df_identificar_imovel"], left_on='Proprietario', right_on='Nome_Prop', how='left')
+                    df_tokio_merged.rename(columns={"CPF": "CPF_Proprietario"}, inplace=True)
+                    df_to_check = df_tokio_merged.loc[~(df_tokio_merged['CPF_Proprietario'].isin(dict_dfs_lancamento["df_checar_lancamento"]["CPF"]))]
+
+                if df_to_check.shape[0] > 0:
+                    st.error("Os seguros abaixo estão para pagamento mas não foram identificados!!! É necessário conferir um por um")
+                    st.write(df_to_check)
+                else:
+                    st.success("Não foi identificado nenhum pagamento que não esteja lançado!")
+
+
+
+
+            
+                    
