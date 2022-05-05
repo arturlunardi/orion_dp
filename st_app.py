@@ -17,6 +17,7 @@ from dateutil.relativedelta import relativedelta
 import datetime
 import seguros
 import get_raw_data
+import numpy as np
 
 
 st.set_page_config(
@@ -95,6 +96,8 @@ def predict_json(project, model, instances, signature_name, version=None):
 
 
 def real_br_money_mask(my_value):
+    if my_value == '' or my_value is None:
+        return np.nan
     a = '{:,.2f}'.format(float(my_value))
     b = a.replace(',','v')
     c = b.replace('.',',')
@@ -466,6 +469,8 @@ if check_password("password"):
                 elif type_of_role == 'Agenciador':
                     agenciadores_vista = df_usuarios_vista.loc[df_usuarios_vista['Nomecompleto'].isin(nome_agenciadores)]['Codigo'].tolist()
                     dict_replace_agenciadores = df_usuarios_vista.set_index('Codigo')['Nomecompleto'].to_dict()
+                    # TODO: arrumar o dataset. Eu estou identificando os imóveis dos corretores dos códigos passados, mas quando faço o request pra pegar o imóvel,
+                    # ele vem com o código do primeiro corretor do imóvel. Ex: 2022-04-01 | 2022-04-30 | imóvel 647014, corretor selecionado Odivan, mas vem Juliana.
                     df_agenciamentos = create_dataset.get_agenciamentos_tables(type_of_report, data_inicio.strftime('%Y-%m-%d'), data_termino.strftime('%Y-%m-%d'), agenciadores_vista, dict_replace_agenciadores, type_of_status, groupby_type)
                     st.dataframe(df_agenciamentos)
                     if type_of_report == 'Detalhado':
@@ -535,6 +540,7 @@ if check_password("password"):
                             df_comissao_corretores['Valor do Aluguel'] = df_comissao_corretores['Valor do Aluguel'].apply(real_br_money_mask_to_float)
                             # crio um df agrupado de valor do aluguel por corretor
                             df_agrupado = df_comissao_corretores.groupby('Nome').sum()['Valor do Aluguel']
+                            st.write(df_agrupado)
 
                             # agora para cada corretor, veja se o valor agrupado do aluguel é maior que a meta
                             # se for, multiplique cada valor desse corretor por meta batida, se não meta não batida
@@ -552,6 +558,14 @@ if check_password("password"):
                         else:
                             st.warning('Nenhum corretor bateu a meta!!!!')
                         st.dataframe(df_comissao_corretores)
+
+                        df_excel = to_excel(df_comissao_corretores.reset_index(drop=True))
+
+                        st.download_button(
+                        label="Pressione para Download",
+                        data=df_excel,
+                        file_name='extract.xlsx',
+                        )
                     
                     elif type_of_role == 'Agenciador':
                         st.info("Atenção! Para um imóvel ser considerado como agenciado significa que: \n- Ele foi **criado** no Vista no período informado acima \n- Foi **disponibilizado** para o Status Locação. \n - **Não é um Imóvel de Desocupação** marcado no Vista.")
@@ -608,11 +622,11 @@ if check_password("password"):
                         st.info(f"Foram locados **{len(df_comissao_detalhado_locados_agenciadores)} imóveis** no período entre **{data_inicio.strftime('%Y-%m-%d')}** e **{data_termino.strftime('%Y-%m-%d')}**.")
                         
                         comissao_agenciadores = {}
-                        # print('run nova')
 
                         # para todos os imóveis locados.
                         for imovel in df_comissao_detalhado_locados_agenciadores['cod_crm']:
-                            imovel_no_vista = df_agenciamentos_comissoes.loc[df_agenciamentos_comissoes['Codigo'] == imovel]
+                            # to colocando só nesse imóvel aqui um strip, pq no sami pode ter um imóvel com um espaço a mais, e no vista não.
+                            imovel_no_vista = df_agenciamentos_comissoes.loc[df_agenciamentos_comissoes['Codigo'] == imovel.strip()]
                             # pegue o valor do imóvel
                             valor_imovel = real_br_money_mask_to_float(df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel]['Valor do Aluguel'].squeeze())
                             # pegue todos os agenciadores do imóvel em formato de lista
@@ -694,8 +708,16 @@ if check_password("password"):
                         df_comissao_compacto_locados_agenciadores['Valor de Comissão'] = df_comissao_compacto_locados_agenciadores['Valor de Comissão'].apply(real_br_money_mask)
                         if type_of_report == 'Detalhado':
                             st.write(df_comissao_detalhado_locados_agenciadores)
+                            df_excel = to_excel(df_comissao_detalhado_locados_agenciadores.reset_index(drop=True))
                         elif type_of_report == 'Compacto':
                             st.write(df_comissao_compacto_locados_agenciadores)
+                            df_excel = to_excel(df_comissao_compacto_locados_agenciadores.reset_index(drop=True))
+
+                        st.download_button(
+                        label="Pressione para Download",
+                        data=df_excel,
+                        file_name='extract.xlsx',
+                        )
 
     # ------------- Criação Imóvel Sami/Vista ------------------------
 
