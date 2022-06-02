@@ -4,6 +4,8 @@ import streamlit as st
 import datetime
 import requests
 import json
+from dateutil.relativedelta import relativedelta
+import calendar
 
 
 def conectar():
@@ -348,3 +350,51 @@ def get_df_lancamentos_sami(tipo_seguro: str, data_referencia: datetime.date, se
         )
 
     return {"df_checar_lancamento": df_checar_lancamento, "df_identificar_imovel": df_identificar_imovel}
+
+
+def month_range(year: int, month: int) -> tuple:
+    """
+    Return the first and the last day of a month-year date.
+
+    Args:
+        year (int): year of date
+        month (int): month of date
+
+    Returns:
+        tuple: return a tuple filled with two strings, the initial and final date of the month.
+    """    
+    last_day = calendar.monthrange(year, month)[1]
+    return f'{year}-{month}-01', f'{year}-{month}-{last_day}'
+
+
+# @st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False)
+def raw_data_monthly(last_month: bool=False, id_cidade: bool=1, id_status: tuple=(1,3)) -> pd.DataFrame:
+    """
+    Return a Advertiser DataFrame for the last 12 months.
+
+    Args:
+        last_month (bool, optional): if True, start last month. Defaults to False.
+        id_cidade (int, optional): id of the city. Defaults to 1.
+        id_status (tuple, optional): id of the status. Defaults to (1,3).
+
+    Returns:
+        pd.DataFrame: Advertiser DataFrame for the last 12 months.
+    """ 
+
+    if last_month:
+        initial_date = datetime.datetime.now() + relativedelta(months=-13)
+        final_date = datetime.datetime.now() + relativedelta(months=-1)
+    else:
+        initial_date = datetime.datetime.now() + relativedelta(months=-12)
+        final_date = datetime.datetime.now()
+
+    data_scrap = pd.read_sql_query(st.secrets["query_raw_monthly"]["scrap"].replace('initial_date', month_range(initial_date.year, initial_date.month)[0]).replace('final_date', month_range(final_date.year, final_date.month)[1]).replace('id_da_cidade', str(id_cidade)).replace('id_do_status', str(id_status)), conectar())
+    data_orion = pd.read_sql_query(st.secrets["query_raw_monthly"]["orion"].replace('initial_date', month_range(initial_date.year, initial_date.month)[0]).replace('final_date', month_range(final_date.year, final_date.month)[1]).replace('id_da_cidade', str(id_cidade)).replace('id_do_status', str(id_status)), conectar_orion())
+
+    data_orion['imobiliaria'] = 'Órion'
+
+    data = pd.concat([data_scrap, data_orion], sort=False)
+
+    data['bairro'] = data['bairro'].apply(lambda x: " ".join(x.split()[-2:]) if len(x.split()) > 2 else x)
+
+    return data

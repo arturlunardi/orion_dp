@@ -18,6 +18,7 @@ import datetime
 import seguros
 import get_raw_data
 import numpy as np
+import plotly.express as px
 
 
 st.set_page_config(
@@ -120,6 +121,29 @@ def to_excel(df):
     return processed_data
 
 
+def plot_imoveis_fig(grouped_df):
+    fig = px.line(grouped_df.loc[grouped_df['imobiliaria']!='VivaReal'], x='data_analise', y='count', color='imobiliaria', template='simple_white', markers=True, labels={'count': 'Imóveis Anunciados', 'data_analise': 'Data'}, height=450, width=1300)
+    fig.update_xaxes(
+        rangeslider_visible=True,
+        rangeselector=dict(
+            buttons=list([
+                dict(count=1, label="1m", step="month", stepmode="backward"),
+                dict(count=6, label="6m", step="month", stepmode="backward"),
+                dict(count=1, label="Este Ano", step="year", stepmode="todate"),
+                dict(count=1, label="1y", step="year", stepmode="backward"),
+                dict(step="all")
+            ])
+        )
+    )
+    fig.update_traces(hovertemplate='<br><b>Imóveis</b>: %{y:.2d}</br>')
+    fig.update_layout(hovermode="x unified")
+    fig.update_xaxes(
+        dtick="M1",
+        tickformat="%b %d\n%Y")
+
+    return fig
+
+
 if check_password("password"):
 
     # ----------- Global Sidebar ---------------
@@ -190,9 +214,11 @@ if check_password("password"):
         
             return df_oferta, df_orion, df_outros
 
+
         # Get Datasets
         with st.spinner('Carregando os dados...'):
             df_oferta, df_orion, df_outros = get_datasets()
+            df_advertiser = get_raw_data.raw_data_monthly(last_month=False, id_cidade=1, id_status=(1, 3))
 
         # SideBar Filters
         st.sidebar.subheader("Filtros")
@@ -254,12 +280,19 @@ if check_password("password"):
                     else:
                         df_orion = df_orion.loc[df_orion[key] == value]
                         df_outros = df_outros.loc[df_outros[key] == value]
+                        df_advertiser = df_advertiser.loc[df_advertiser[key] == value]
                 elif type(value) == tuple:
                         df_orion = df_orion.loc[df_orion[key].between(value[0], value[1])]
                         df_oferta = df_oferta.loc[df_oferta[key].between(value[0], value[1])]
+                        df_advertiser = df_advertiser.loc[df_advertiser[key].between(value[0], value[1])]
                 elif value == '':
                     st.sidebar.warning(f"Por favor, selecione um valor válido no campo {key.title().replace('_', ' ')}")
                     # st.stop()
+
+            st.header('Imóveis da Cidade')
+            grouped_df = df_advertiser.groupby(['data_analise', 'imobiliaria']).size().reset_index(name='count')
+            fig = plot_imoveis_fig(grouped_df)
+            st.plotly_chart(fig)
 
             st.header('Imóveis da Órion')
             st.dataframe(df_orion.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
@@ -268,6 +301,11 @@ if check_password("password"):
             st.dataframe(df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
             # st.write(h + bo + df_outros.sort_values(by='predict_proba', ascending=False).reset_index(drop=True).to_html(render_links=True, escape=False, bold_rows=False, float_format="%3s") + bc, unsafe_allow_html=True)
         else:
+            st.header('Imóveis da Cidade')
+            grouped_df = df_advertiser.groupby(['data_analise', 'imobiliaria']).size().reset_index(name='count')
+            fig = plot_imoveis_fig(grouped_df)
+            st.plotly_chart(fig)
+
             st.header('Imóveis da Órion')
             st.dataframe(df_orion.sort_values(by='predict_proba', ascending=False).reset_index(drop=True))
 
