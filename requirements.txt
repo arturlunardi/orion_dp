@@ -7,3 +7,4 @@ folium
 streamlit_folium
 xlsxwriter
 tabula-py
+plotly
