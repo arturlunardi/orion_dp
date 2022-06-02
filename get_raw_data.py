@@ -395,6 +395,6 @@ def raw_data_monthly(last_month: bool=False, id_cidade: bool=1, id_status: tuple
 
     data = pd.concat([data_scrap, data_orion], sort=False)
 
-    data['bairro'] = data['bairro'].apply(lambda x: " ".join(x.split()[-2:]) if len(x.split()) > 2 else x)
+    # data['bairro'] = data['bairro'].apply(lambda x: " ".join(x.split()[-2:]) if len(x.split()) > 2 else x)
 
     return data
