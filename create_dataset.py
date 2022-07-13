@@ -203,7 +203,7 @@ def real_br_money_mask(my_value):
 
 
 # @st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False)
-def get_df_usuarios(only_vendas, only_exibir_site=True):
+def get_df_usuarios(only_vendas, only_exibir_site=True, all_users=False):
     """
     Retorna df do vista com todos os usuários de locação.
     """
@@ -215,16 +215,21 @@ def get_df_usuarios(only_vendas, only_exibir_site=True):
             if only_vendas:
                 # exclui o gerente pq no de ag comissoes aparecia o vitor e quero testar
                 # "Gerente": ["Nao"]
-                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda",  "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", {{"Equipe": ["Nome"]}}], "filter": {{"Exibirnosite": ["Sim"], "Atua\\u00e7\\u00e3oemvenda": ["Sim"], "Corretor": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
+                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda", "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", "Fone", "Foto", {{"Equipe": ["Nome"]}}], "filter": {{"Exibirnosite": ["Sim"], "Atua\\u00e7\\u00e3oemvenda": ["Sim"], "Corretor": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
+            elif all_users:
+                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda", "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", "Fone", "Foto", {{"Equipe": ["Nome"]}}], "filter": {{"Exibirnosite": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
             else:
-                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda",  "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", {{"Equipe": ["Nome"]}}], "filter": {{"Exibirnosite": ["Sim"], "Corretor": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
+                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda", "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", "Fone", "Foto", {{"Equipe": ["Nome"]}}], "filter": {{"Exibirnosite": ["Sim"], "Corretor": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
         else:
             if only_vendas:
                 # exclui o gerente pq no de ag comissoes aparecia o vitor e quero testar
                 # "Gerente": ["Nao"]
-                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda",  "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", {{"Equipe": ["Nome"]}}], "filter": {{"Atua\\u00e7\\u00e3oemvenda": ["Sim"], "Corretor": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
+                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda", "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", "Fone", "Foto", {{"Equipe": ["Nome"]}}], "filter": {{"Atua\\u00e7\\u00e3oemvenda": ["Sim"], "Corretor": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
+            elif all_users:
+                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda", "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", "Fone", "Foto", {{"Equipe": ["Nome"]}}], "filter": {{"Atua\\u00e7\\u00e3oemvenda": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
             else:
-                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda",  "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", {{"Equipe": ["Nome"]}}], "filter": {{"Corretor": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
+                url = f'http://brasaolt-rest.vistahost.com.br/usuarios/listar?key={st.secrets["api_vista_key"]}&pesquisa={{"fields":["Codigo", "Nomecompleto", "Nome", "E-mail", "Atua\\u00e7\\u00e3oemloca\\u00e7\\u00e3o", "Atua\\u00e7\\u00e3oemvenda", "Corretor", "Gerente", "Agenciador", "Administrativo", "Observacoes", "Fone", "Foto", {{"Equipe": ["Nome"]}}], "filter": {{"Corretor": ["Sim"]}}, "paginacao":{{"pagina":{page}, "quantidade":50}}}}&Equipe={{"fields:["Nome"]}}'
+        
         response = requests.get(url, headers=headers)
         if response.content == b'[]':
             break

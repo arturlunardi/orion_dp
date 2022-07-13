@@ -150,7 +150,7 @@ if check_password("password"):
 
     condition = st.sidebar.selectbox(
         "Selecione a Aba",
-        ("Home", "Melhores Imóveis", "Previsão de Valor de Aluguel", "Desempenho de Equipes", "Cálculo de Comissões", "Criação Imóvel Sami/Vista", "Conferência de Seguros")
+        ("Home", "Melhores Imóveis", "Previsão de Valor de Aluguel", "Desempenho de Equipes", "Cálculo de Comissões", "Criação Imóvel Sami/Vista", "Conferência de Seguros", "Gerador de Assinatura de E-mail")
     )
 
     # ------------- Introduction ------------------------
@@ -490,7 +490,12 @@ if check_password("password"):
 
         if type_of_role == 'Agenciador':
             st.info("Atenção! Para um imóvel ser considerado como agenciado significa que: \n- Ele foi **criado** no Vista no período informado acima \n- Foi **disponibilizado** para o Status definido abaixo. \n - **Não é um Imóvel de Desocupação** marcado no Vista.")
-            nome_agenciadores = st.multiselect(options=df_usuarios_vista['Nomecompleto'].tolist(), label='Selecione os Agenciadores')
+            nome_agenciadores_list = ["Todos"] + df_usuarios_vista['Nomecompleto'].tolist()
+            nome_agenciadores = st.multiselect(options=nome_agenciadores_list, label='Selecione os Agenciadores')
+            if "Todos" in nome_agenciadores:
+                agenciadores_to_filter = df_usuarios_vista['Nomecompleto'].tolist()
+            else:
+                agenciadores_to_filter = nome_agenciadores
             type_of_status = st.radio(label='Status', options=['Disponibilizados para Locação ou Venda', 'Disponibilizados apenas para Locação', 'Disponibilizados apenas para Venda'])
             if type_of_report == 'Compacto':
                 groupby_type = st.selectbox(label='Selecione o tipo de agrupamento', options=['Agenciador', 'Finalidade', 'Status', 'Categoria', 'Bairro'])
@@ -505,7 +510,7 @@ if check_password("password"):
                     df_imoveis_locados = create_dataset.get_corretores_vendas_table(type_of_report, data_inicio.strftime('%Y/%m/%d'), data_termino.strftime('%Y/%m/%d'))               
                     st.dataframe(df_imoveis_locados)
                 elif type_of_role == 'Agenciador':
-                    agenciadores_vista = df_usuarios_vista.loc[df_usuarios_vista['Nomecompleto'].isin(nome_agenciadores)]['Codigo'].tolist()
+                    agenciadores_vista = df_usuarios_vista.loc[df_usuarios_vista['Nomecompleto'].isin(agenciadores_to_filter)]['Codigo'].tolist()
                     dict_replace_agenciadores = df_usuarios_vista.set_index('Codigo')['Nomecompleto'].to_dict()
                     # TODO: arrumar o dataset. Eu estou identificando os imóveis dos corretores dos códigos passados, mas quando faço o request pra pegar o imóvel,
                     # ele vem com o código do primeiro corretor do imóvel. Ex: 2022-04-01 | 2022-04-30 | imóvel 647014, corretor selecionado Odivan, mas vem Juliana.
@@ -643,12 +648,12 @@ if check_password("password"):
                             # df_agenciamentos_metas_imoveis_detalhado = create_dataset.get_agenciamentos_tables('Detalhado', data_inicio.strftime('%Y-%m-%d'), data_termino.strftime('%Y-%m-%d'), df_usuarios_equipe_agenciadores['Codigo'].tolist(), dict_replace_agenciadores, 'Disponibilizados apenas para Locação', None)
                             ags_feitos = len(df_agenciamentos_metas_imoveis)
 
-                        if ags_feitos >= st.secrets["codigos_importantes"]["meta_agenciamentos_locacao"]:
-                            st.success(f'Parabéns, a meta foi batida! Foram agenciados **{ags_feitos} imóveis** e a meta é de **{st.secrets["codigos_importantes"]["meta_agenciamentos_locacao"]} imóveis**.')
+                        if ags_feitos >= st.secrets["metas"]["agenciadores_locacao"]:
+                            st.success(f'Parabéns, a meta foi batida! Foram agenciados **{ags_feitos} imóveis** e a meta é de **{st.secrets["metas"]["agenciadores_locacao"]} imóveis**.')
                             if type_of_report == 'Compacto':
                                 df_agenciamentos_metas_imoveis['Valor da Comissão'] = real_br_money_mask(st.secrets["codigos_importantes"]["comissao_agenciadores_meta_imoveis"])
                         else:
-                            st.warning(f"Infelizmente a meta de agenciamentos não foi alcançada. Foram agenciados **{ags_feitos} imóveis** e a meta é de **{st.secrets['codigos_importantes']['meta_agenciamentos_locacao']} imóveis**.")
+                            st.warning(f'Infelizmente a meta de agenciamentos não foi alcançada. Foram agenciados **{ags_feitos} imóveis** e a meta é de **{st.secrets["metas"]["agenciadores_locacao"]} imóveis**.')
                             if type_of_report == 'Compacto':
                                 df_agenciamentos_metas_imoveis['Valor da Comissão'] = real_br_money_mask(st.secrets["codigos_importantes"]["comissao_agenciadores_meta_nao_batida_imoveis"])
                             
@@ -681,8 +686,21 @@ if check_password("password"):
                             codigo_lider = st.secrets['codigos_importantes']['lider']
 
                             # pegando os valores de cada colaborador
-                            valor_lider = st.secrets['codigos_importantes']['lider_valor_cheio'] if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao" else st.secrets['codigos_importantes']['lider_valor_passivo_desocupacao']
-                            valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_cheio'] if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao" else st.secrets['codigos_importantes']['agenciadores_passivo_desocupacao']
+                            if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao":
+                                valor_lider = st.secrets['codigos_importantes']['lider_valor_cheio']
+                                valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_cheio']
+                            
+                            elif imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Sim":
+                                valor_lider = st.secrets['codigos_importantes']['lider_valor_passivo']
+                                valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_passivo']
+
+                            else:
+                                valor_lider = st.secrets['codigos_importantes']['lider_valor_desocupacao']
+                                valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_desocupacao']
+
+
+                            # valor_lider = st.secrets['codigos_importantes']['lider_valor_cheio'] if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao" else st.secrets['codigos_importantes']['lider_valor_passivo_desocupacao']
+                            # valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_cheio'] if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao" else st.secrets['codigos_importantes']['agenciadores_passivo_desocupacao']
 
                             # aqui eu to usando o nomecompleto pq no dict replace agenciadores tb usei nome completo
                             # lider_ganha = any([True for x in agenciadores if x in df_usuarios_equipe_agenciadores['Nomecompleto'].unique().tolist()])
@@ -813,7 +831,212 @@ if check_password("password"):
                     st.success("Não foi identificado nenhum pagamento que não esteja lançado!")
 
 
+    # ------------- Gerador de Assinatura de E-mail ------------------------
+
+    elif condition == 'Gerador de Assinatura de E-mail':
+        df_usuarios_vista = create_dataset.get_df_usuarios(only_vendas=False, all_users=True)
+        # st.write(df_usuarios_vista.drop(columns=["Equipe"]))
+        corretor = st.selectbox(
+            "Selecione o Corretor",
+            df_usuarios_vista["Nomecompleto"]
+        )
+
+        nome = st.text_input("Confira o nome", value=corretor)
+        fone = st.text_input("Confira o telefone", value=df_usuarios_vista.loc[df_usuarios_vista['Nomecompleto'] == corretor]["Fone"].squeeze())
+        fone_formatado = "55" + re.sub('[^0-9]', '', fone)
+        cargo = st.text_input("Preencha o cargo")
+        setor = st.selectbox(
+            "Selecione o setor",
+            ["Locações", "Vendas", "Marketing", "Administrativo", "RH", "Comercial"]
+        )
+        foto = df_usuarios_vista.loc[df_usuarios_vista['Nomecompleto'] == corretor]["Foto"].squeeze()
+        botao = st.checkbox("Adicionar botão WhatsApp")
 
 
-            
-                    
+        if botao:
+            html_string = f'''
+            <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle">
+            <tbody>
+                <tr>
+                    <td>
+                    <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle">
+                        <tbody>
+                            <tr>
+                                <td style="vertical-align:top">
+                                <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle">
+                                    <tbody>
+                                        <tr>
+                                            <td style="text-align:center"><img class="bHiaRe sc-cHGsZl" src={foto} style="display:block; max-width:128px; width:130px" /></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="text-align:center">
+                                            <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="display:inline-block; font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle">
+                                                <tbody>
+                                                    <tr>
+                                                        <td><a class="sc-hzDkRC kpsoyz" href="https://www.facebook.com/OrionAssessoriaImobiliaria" style="display: inline-block; padding: 0px; background-color: rgb(25, 55, 107);"><img alt="facebook" class="ccSRck sc-bRBYWo" src="https://cdn2.hubspot.net/hubfs/53/tools/email-signature-generator/icons/facebook-icon-2x.png" style="background-color:#19376b; display:block; height:24px; max-width:135px" /></a></td>
+                                                        <td>&nbsp;</td>
+                                                        <td><a class="sc-hzDkRC kpsoyz" href="https://www.linkedin.com/company/%C3%B3rion-assessoria-imobili%C3%A1ria/" style="display: inline-block; padding: 0px; background-color: rgb(25, 55, 107);"><img alt="linkedin" class="ccSRck sc-bRBYWo" src="https://cdn2.hubspot.net/hubfs/53/tools/email-signature-generator/icons/linkedin-icon-2x.png" style="background-color:#19376b; display:block; height:24px; max-width:135px" /></a></td>
+                                                        <td>&nbsp;</td>
+                                                        <td><a class="sc-hzDkRC kpsoyz" href="https://www.instagram.com/imobiliariaorion/" style="display: inline-block; padding: 0px; background-color: rgb(25, 55, 107);"><img alt="instagram" class="ccSRck sc-bRBYWo" src="https://cdn2.hubspot.net/hubfs/53/tools/email-signature-generator/icons/instagram-icon-2x.png" style="background-color:#19376b; display:block; height:24px; max-width:135px" /></a></td>
+                                                        <td>&nbsp;</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                </td>
+                                <td>&nbsp;</td>
+                                <td style="vertical-align:middle">
+                                <h3 style="margin-left:0; margin-right:0"><strong>{nome}</strong></h3>
+
+                                <p style="margin-left:0; margin-right:0">{cargo}</p>
+
+                                <p style="margin-left:0; margin-right:0">{setor} | &nbsp;&Oacute;rion Assessoria Imobili&aacute;ria
+
+                                <hr />
+                                <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle;">
+                                    <tbody>
+                                        <tr>
+                                            <td style="vertical-align:middle">
+                                            <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle;">
+                                                <tbody>
+                                                    <tr>
+                                                        <td style="vertical-align:bottom"><span style="background-color:#19376b"><img class="blSEcj sc-iRbamj" src="https://cdn2.hubspot.net/hubfs/53/tools/email-signature-generator/icons/phone-icon-2x.png" style="background-color:#19376b; display:block; width:13px" /></span></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            </td>
+                                            <td><a class="sc-gipzik iyhjGb" href="tel:{fone}" style="text-decoration: none; color: rgb(0, 0, 0); font-size: 12px;">{fone}</a></td>
+                                        </tr>
+
+                                        <tr style="display: block; margin-bottom: 5px;"><td></td></tr>
+
+                                        <tr>
+                                            <td style="vertical-align:middle">
+                                            <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle">
+                                                <tbody>
+                                                    <tr>
+                                                        <td style="vertical-align:bottom"><span style="background-color:#19376b"><img class="blSEcj sc-iRbamj" src="https://cdn2.hubspot.net/hubfs/53/tools/email-signature-generator/icons/link-icon-2x.png" style="background-color:#19376b; display:block; width:13px" /></span></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            </td>
+                                            <td><a class="sc-gipzik iyhjGb" href="//orionsm.com.br" style="text-decoration: none; color: rgb(0, 0, 0); font-size: 12px;">orionsm.com.br</a></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle">
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                                <br>
+                                <a class="sc-fAjcbJ byigni" href="https://wa.me/{fone_formatado}" rel="noopener noreferrer" style="border-width: 6px 12px; border-style: solid; border-color: rgb(25, 55, 107); display: inline-block; background-color: rgb(25, 55, 107); color: rgb(255, 255, 255); font-weight: 700; text-decoration: none; text-align: center; line-height: 40px; font-size: 12px; border-radius: 3px;" target="_blank">Entre em contato comigo pelo whatsapp</a>
+
+                                <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle">
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+            '''
+
+
+        else:
+            html_string = f'''
+            <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle">
+            <tbody>
+                <tr>
+                    <td>
+                    <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle">
+                        <tbody>
+                            <tr>
+                                <td style="vertical-align:top">
+                                <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle">
+                                    <tbody>
+                                        <tr>
+                                            <td style="text-align:center"><img class="bHiaRe sc-cHGsZl" src={foto} style="display:block; max-width:128px; width:130px" /></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="text-align:center">
+                                            <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="display:inline-block; font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle">
+                                                <tbody>
+                                                    <tr>
+                                                        <td><a class="sc-hzDkRC kpsoyz" href="https://www.facebook.com/OrionAssessoriaImobiliaria" style="display: inline-block; padding: 0px; background-color: rgb(25, 55, 107);"><img alt="facebook" class="ccSRck sc-bRBYWo" src="https://cdn2.hubspot.net/hubfs/53/tools/email-signature-generator/icons/facebook-icon-2x.png" style="background-color:#19376b; display:block; height:24px; max-width:135px" /></a></td>
+                                                        <td>&nbsp;</td>
+                                                        <td><a class="sc-hzDkRC kpsoyz" href="https://www.linkedin.com/company/%C3%B3rion-assessoria-imobili%C3%A1ria/" style="display: inline-block; padding: 0px; background-color: rgb(25, 55, 107);"><img alt="linkedin" class="ccSRck sc-bRBYWo" src="https://cdn2.hubspot.net/hubfs/53/tools/email-signature-generator/icons/linkedin-icon-2x.png" style="background-color:#19376b; display:block; height:24px; max-width:135px" /></a></td>
+                                                        <td>&nbsp;</td>
+                                                        <td><a class="sc-hzDkRC kpsoyz" href="https://www.instagram.com/imobiliariaorion/" style="display: inline-block; padding: 0px; background-color: rgb(25, 55, 107);"><img alt="instagram" class="ccSRck sc-bRBYWo" src="https://cdn2.hubspot.net/hubfs/53/tools/email-signature-generator/icons/instagram-icon-2x.png" style="background-color:#19376b; display:block; height:24px; max-width:135px" /></a></td>
+                                                        <td>&nbsp;</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                </td>
+                                <td>&nbsp;</td>
+                                <td style="vertical-align:middle">
+                                <h3 style="margin-left:0; margin-right:0"><strong>{nome}</strong></h3>
+
+                                <p style="margin-left:0; margin-right:0">{cargo}</p>
+
+                                <p style="margin-left:0; margin-right:0">{setor} | &nbsp;&Oacute;rion Assessoria Imobili&aacute;ria
+
+                                <hr />
+                                <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle;">
+                                    <tbody>
+                                        <tr>
+                                            <td style="vertical-align:middle">
+                                            <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle;">
+                                                <tbody>
+                                                    <tr>
+                                                        <td style="vertical-align:bottom"><span style="background-color:#19376b"><img class="blSEcj sc-iRbamj" src="https://cdn2.hubspot.net/hubfs/53/tools/email-signature-generator/icons/phone-icon-2x.png" style="background-color:#19376b; display:block; width:13px" /></span></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            </td>
+                                            <td><a class="sc-gipzik iyhjGb" href="tel:{fone}" style="text-decoration: none; color: rgb(0, 0, 0); font-size: 12px;">{fone}</a></td>
+                                        </tr>
+
+                                        <tr style="display: block; margin-bottom: 5px;"><td></td></tr>
+
+                                        <tr>
+                                            <td style="vertical-align:middle">
+                                            <table cellpadding="0" cellspacing="0" class="eQYmiW sc-gPEVay" style="font-family:Arial; font-size:small; vertical-align:-webkit-baseline-middle">
+                                                <tbody>
+                                                    <tr>
+                                                        <td style="vertical-align:bottom"><span style="background-color:#19376b"><img class="blSEcj sc-iRbamj" src="https://cdn2.hubspot.net/hubfs/53/tools/email-signature-generator/icons/link-icon-2x.png" style="background-color:#19376b; display:block; width:13px" /></span></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            </td>
+                                            <td><a class="sc-gipzik iyhjGb" href="//orionsm.com.br" style="text-decoration: none; color: rgb(0, 0, 0); font-size: 12px;">orionsm.com.br</a></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+'''
+
+        import streamlit.components.v1 as components
+        components.html(html_string, height=600)
+        # st.markdown(html_string, unsafe_allow_html=True)
+        st.text(html_string)
