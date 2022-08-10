@@ -143,6 +143,15 @@ def plot_imoveis_fig(grouped_df):
 
     return fig
 
+def change_dict_key(dictionary):
+    # print(f"before {dictionary}")
+    if type(dictionary) == str:
+        dictionary = eval(dictionary)
+    for key in dictionary.copy():
+        dictionary[dict_replace_agenciadores.get(key)] = dictionary.pop(key)
+    # print(f"after {dictionary}")
+    return dictionary
+
 
 if check_password("password"):
 
@@ -575,7 +584,7 @@ if check_password("password"):
                         
                         if type_of_report == 'Compacto':
                             df_comissao_corretores['comissao_corretor'] = df_comissao_corretores['Soma de Valor do Aluguel'].apply(real_br_money_mask_to_float).apply(lambda x: x*st.secrets['codigos_importantes']['comissao_corretor_meta_batida'] if x >= st.secrets["metas"]["corretores"] else x*st.secrets['codigos_importantes']['comissao_corretor_meta_nao_batida']).apply(real_br_money_mask)
-                            for corretor in df_comissao_corretores['Nome'].unique():
+                            for corretor in df_comissao_corretores['Nome'].dropna().unique():
                                 if real_br_money_mask_to_float(df_comissao_corretores.loc[df_comissao_corretores['Nome'] == corretor]['Soma de Valor do Aluguel'].squeeze()) > st.secrets["metas"]["corretores"]:
                                     corretores_que_bateram_a_meta.append(f"**{corretor}**")
                         elif type_of_report == 'Detalhado':
@@ -587,7 +596,7 @@ if check_password("password"):
 
                             # agora para cada corretor, veja se o valor agrupado do aluguel é maior que a meta
                             # se for, multiplique cada valor desse corretor por meta batida, se não meta não batida
-                            for corretor in df_comissao_corretores['Nome'].unique():
+                            for corretor in df_comissao_corretores['Nome'].dropna().unique():
                                 if df_agrupado.loc[corretor] >= st.secrets["metas"]["corretores"]:
                                     df_comissao_corretores.loc[df_comissao_corretores['Nome'] == corretor, 'comissao_corretor'] = df_comissao_corretores.loc[df_comissao_corretores['Nome'] == corretor]['Valor do Aluguel'].apply(lambda x: x*st.secrets['codigos_importantes']['comissao_corretor_meta_batida']).apply(real_br_money_mask)
                                     corretores_que_bateram_a_meta.append(f"**{corretor}**")
@@ -611,6 +620,8 @@ if check_password("password"):
                         )
                     
                     elif type_of_role == 'Agenciador':
+                        sistema_lider = True
+
                         st.info("Atenção! Para um imóvel ser considerado como agenciado significa que: \n- Ele foi **criado** no Vista no período informado acima \n- Foi **disponibilizado** para o Status Locação. \n - **Não é um Imóvel de Desocupação** marcado no Vista.")
                         # a logica é essa:
                         # para todos os imóveis locados, entre em cada imóvel e verifique os agenciadores, depois calcule em cima disso.
@@ -683,76 +694,98 @@ if check_password("password"):
                             # agenciadores = [dict_replace_agenciadores.get(agenciador) for agenciador in agenciadores]
                             # codigo_lider = dict_replace_agenciadores.get(st.secrets['codigos_importantes']['lider'])
 
-                            codigo_lider = st.secrets['codigos_importantes']['lider']
+                            if sistema_lider:
 
-                            # pegando os valores de cada colaborador
-                            if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao":
-                                valor_lider = st.secrets['codigos_importantes']['lider_valor_cheio']
-                                valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_cheio']
-                            
-                            elif imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Sim":
-                                valor_lider = st.secrets['codigos_importantes']['lider_valor_passivo']
-                                valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_passivo']
+                                codigo_lider = st.secrets['codigos_importantes']['lider']
 
-                            else:
-                                valor_lider = st.secrets['codigos_importantes']['lider_valor_desocupacao']
-                                valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_desocupacao']
+                                # pegando os valores de cada colaborador
+                                if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao":
+                                    valor_lider = st.secrets['codigos_importantes']['lider_valor_cheio']
+                                    valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_cheio']
+                                
+                                elif imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Sim":
+                                    valor_lider = st.secrets['codigos_importantes']['lider_valor_passivo']
+                                    valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_passivo']
 
-
-                            # valor_lider = st.secrets['codigos_importantes']['lider_valor_cheio'] if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao" else st.secrets['codigos_importantes']['lider_valor_passivo_desocupacao']
-                            # valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_cheio'] if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao" else st.secrets['codigos_importantes']['agenciadores_passivo_desocupacao']
-
-                            # aqui eu to usando o nomecompleto pq no dict replace agenciadores tb usei nome completo
-                            # lider_ganha = any([True for x in agenciadores if x in df_usuarios_equipe_agenciadores['Nomecompleto'].unique().tolist()])
-                            # se nenhum corretor da equipe agenciadores ou vendas estiver no imóvel, o lider também não ganha
-                            lider_ganha = any([True for x in agenciadores if x in df_usuarios_equipe_agenciadores['Codigo'].unique().tolist() or x in df_usuarios_equipe_vendas['Codigo'].unique().tolist()])
-                            
-                            # print({imovel: comissao_agenciadores.get('29'), "antes": True})
-
-                            # se o lider n estiver no dict, crie a chave e forneça o valor do lider
-                            if not codigo_lider in comissao_agenciadores:
-                                comissao_agenciadores[codigo_lider] = valor_imovel * valor_lider if lider_ganha else 0
-                            # caso já exista, incremente o valor do lider
-                            else:
-                                comissao_agenciadores[codigo_lider] += valor_imovel * valor_lider if lider_ganha else 0
-
-                            # para cada agenciador, verifique se ele está no dict, se não, crie a chave e forneça o valor do agenciador
-                            for agenciador in agenciadores:
-                                if not agenciador in comissao_agenciadores:
-                                    comissao_agenciadores[agenciador] = valor_imovel * valor_agenciador / len(agenciadores)
-                                # caso já exista, incremente o valor do agenciador
                                 else:
-                                    comissao_agenciadores[agenciador] += valor_imovel * valor_agenciador / len(agenciadores)
+                                    valor_lider = st.secrets['codigos_importantes']['lider_valor_desocupacao']
+                                    valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_desocupacao']
 
-                            # print({imovel: comissao_agenciadores.get('29'), "antes": False})
 
-                            # só pra eu ver se deu certo
-                            # nao faço mais com json dumps pq eu uso o dict pra explodir no dataframe
-                            # df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel, 'comissao_lider'] = json.dumps({codigo_lider: valor_imovel * valor_lider if lider_ganha else 0})
-                            # df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel, 'comissao_agenciadores'] = json.dumps({agenciador: round(valor_imovel * valor_agenciador / len(agenciadores), 3) for agenciador in agenciadores})
-                            df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel, 'comissao_lider'] = [{codigo_lider: valor_imovel * valor_lider if lider_ganha else 0}]
-                            df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel, 'comissao_agenciadores'] = [{agenciador: round(valor_imovel * valor_agenciador / len(agenciadores), 3) for agenciador in agenciadores}]
-                            print([{agenciador: round(valor_imovel * valor_agenciador / len(agenciadores), 3) for agenciador in agenciadores}])
+                                # valor_lider = st.secrets['codigos_importantes']['lider_valor_cheio'] if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao" else st.secrets['codigos_importantes']['lider_valor_passivo_desocupacao']
+                                # valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_cheio'] if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao" else st.secrets['codigos_importantes']['agenciadores_passivo_desocupacao']
 
-                        def change_dict_key(dictionary):
-                            # print(f"before {dictionary}")
-                            if type(dictionary) == str:
-                                dictionary = eval(dictionary)
-                            for key in dictionary.copy():
-                                dictionary[dict_replace_agenciadores.get(key)] = dictionary.pop(key)
-                            # print(f"after {dictionary}")
-                            return dictionary
+                                # aqui eu to usando o nomecompleto pq no dict replace agenciadores tb usei nome completo
+                                # lider_ganha = any([True for x in agenciadores if x in df_usuarios_equipe_agenciadores['Nomecompleto'].unique().tolist()])
+                                # se nenhum corretor da equipe agenciadores ou vendas estiver no imóvel, o lider também não ganha
+                                lider_ganha = any([True for x in agenciadores if x in df_usuarios_equipe_agenciadores['Codigo'].unique().tolist() or x in df_usuarios_equipe_vendas['Codigo'].unique().tolist()])
+                                
+                                # print({imovel: comissao_agenciadores.get('29'), "antes": True})
+
+                                # se o lider n estiver no dict, crie a chave e forneça o valor do lider
+                                if not codigo_lider in comissao_agenciadores:
+                                    comissao_agenciadores[codigo_lider] = valor_imovel * valor_lider if lider_ganha else 0
+                                # caso já exista, incremente o valor do lider
+                                else:
+                                    comissao_agenciadores[codigo_lider] += valor_imovel * valor_lider if lider_ganha else 0
+
+                                # para cada agenciador, verifique se ele está no dict, se não, crie a chave e forneça o valor do agenciador
+                                for agenciador in agenciadores:
+                                    if not agenciador in comissao_agenciadores:
+                                        comissao_agenciadores[agenciador] = valor_imovel * valor_agenciador / len(agenciadores)
+                                    # caso já exista, incremente o valor do agenciador
+                                    else:
+                                        comissao_agenciadores[agenciador] += valor_imovel * valor_agenciador / len(agenciadores)
+
+                                # print({imovel: comissao_agenciadores.get('29'), "antes": False})
+
+                                # só pra eu ver se deu certo
+                                # nao faço mais com json dumps pq eu uso o dict pra explodir no dataframe
+                                # df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel, 'comissao_lider'] = json.dumps({codigo_lider: valor_imovel * valor_lider if lider_ganha else 0})
+                                # df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel, 'comissao_agenciadores'] = json.dumps({agenciador: round(valor_imovel * valor_agenciador / len(agenciadores), 3) for agenciador in agenciadores})
+                                df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel, 'comissao_lider'] = [{codigo_lider: valor_imovel * valor_lider if lider_ganha else 0}]
+                                df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel, 'comissao_agenciadores'] = [{agenciador: round(valor_imovel * valor_agenciador / len(agenciadores), 3) for agenciador in agenciadores}]
+                                # print([{agenciador: round(valor_imovel * valor_agenciador / len(agenciadores), 3) for agenciador in agenciadores}])
+                        
+                            else:
+                                # pegando os valores de cada colaborador
+                                if imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Nao":
+                                    valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_cheio'] + st.secrets['codigos_importantes']['lider_valor_cheio']
+                                
+                                elif imovel_no_vista["ImoveisDesocupacao"].squeeze() == "Nao" and imovel_no_vista["CaptacaoPassiva"].squeeze() == "Sim":
+                                    valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_passivo'] + st.secrets['codigos_importantes']['lider_valor_passivo']
+
+                                else:
+                                    valor_agenciador = st.secrets['codigos_importantes']['agenciadores_valor_desocupacao'] + st.secrets['codigos_importantes']['lider_valor_desocupacao']
+
+                                # para cada agenciador, verifique se ele está no dict, se não, crie a chave e forneça o valor do agenciador
+                                for agenciador in agenciadores:
+                                    if not agenciador in comissao_agenciadores:
+                                        comissao_agenciadores[agenciador] = valor_imovel * valor_agenciador / len(agenciadores)
+                                    # caso já exista, incremente o valor do agenciador
+                                    else:
+                                        comissao_agenciadores[agenciador] += valor_imovel * valor_agenciador / len(agenciadores)
+
+                                df_comissao_detalhado_locados_agenciadores.loc[df_comissao_detalhado_locados_agenciadores['cod_crm'] == imovel, 'comissao_agenciadores'] = [{agenciador: round(valor_imovel * valor_agenciador / len(agenciadores), 3) for agenciador in agenciadores}]
+                                # print([{agenciador: round(valor_imovel * valor_agenciador / len(agenciadores), 3) for agenciador in agenciadores}])
 
                         # isso aqui fica visualmente feio pq aparentemente os dicionarios em uma coluna pandas tem que ter o mesmo tamanho, e fica nome de corretor: null
                         # df_comissao_detalhado_locados_agenciadores['comissao_agenciadores'] = df_comissao_detalhado_locados_agenciadores['comissao_agenciadores'].apply(change_dict_key)
                         # df_comissao_detalhado_locados_agenciadores['comissao_agenciadores'] = df_comissao_detalhado_locados_agenciadores['comissao_agenciadores'].apply(lambda x: {dict_replace_agenciadores.get(key): value for key, value in x.items()})
-                    
-                        for column in ['comissao_lider', 'comissao_agenciadores']:
-                            # st.write(pd.concat([df_comissao_detalhado_locados_agenciadores.drop(['comissao_agenciadores'], axis=1), pd.json_normalize(df_comissao_detalhado_locados_agenciadores['comissao_agenciadores'])], axis=1))
-                            df_comissao_detalhado_locados_agenciadores = df_comissao_detalhado_locados_agenciadores.join(pd.json_normalize(df_comissao_detalhado_locados_agenciadores[column]), lsuffix='_lider').drop([column], axis=1)
-                            if column == 'comissao_lider':
-                                df_comissao_detalhado_locados_agenciadores = df_comissao_detalhado_locados_agenciadores.rename(columns={codigo_lider: "Lider"})
-                            else:
+
+                        if sistema_lider:
+                            for column in ['comissao_lider', 'comissao_agenciadores']:
+                                # st.write(pd.concat([df_comissao_detalhado_locados_agenciadores.drop(['comissao_agenciadores'], axis=1), pd.json_normalize(df_comissao_detalhado_locados_agenciadores['comissao_agenciadores'])], axis=1))
+                                df_comissao_detalhado_locados_agenciadores = df_comissao_detalhado_locados_agenciadores.join(pd.json_normalize(df_comissao_detalhado_locados_agenciadores[column]), lsuffix='_lider').drop([column], axis=1)
+                                if column == 'comissao_lider':
+                                    df_comissao_detalhado_locados_agenciadores = df_comissao_detalhado_locados_agenciadores.rename(columns={codigo_lider: "Lider"})
+                                else:
+                                    df_comissao_detalhado_locados_agenciadores = df_comissao_detalhado_locados_agenciadores.rename(columns=dict_replace_agenciadores)
+
+                        else:
+                            for column in ['comissao_agenciadores']:
+                                # st.write(pd.concat([df_comissao_detalhado_locados_agenciadores.drop(['comissao_agenciadores'], axis=1), pd.json_normalize(df_comissao_detalhado_locados_agenciadores['comissao_agenciadores'])], axis=1))
+                                df_comissao_detalhado_locados_agenciadores = df_comissao_detalhado_locados_agenciadores.join(pd.json_normalize(df_comissao_detalhado_locados_agenciadores[column]), lsuffix='_lider').drop([column], axis=1)
                                 df_comissao_detalhado_locados_agenciadores = df_comissao_detalhado_locados_agenciadores.rename(columns=dict_replace_agenciadores)
 
                         for column in df_comissao_detalhado_locados_agenciadores.iloc[:, 5:].columns:
