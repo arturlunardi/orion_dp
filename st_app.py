@@ -620,7 +620,7 @@ if check_password("password"):
                         )
                     
                     elif type_of_role == 'Agenciador':
-                        sistema_lider = True
+                        sistema_lider = False
 
                         st.info("Atenção! Para um imóvel ser considerado como agenciado significa que: \n- Ele foi **criado** no Vista no período informado acima \n- Foi **disponibilizado** para o Status Locação. \n - **Não é um Imóvel de Desocupação** marcado no Vista.")
                         # a logica é essa:
