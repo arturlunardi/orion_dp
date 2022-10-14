@@ -159,7 +159,8 @@ if check_password("password"):
 
     condition = st.sidebar.selectbox(
         "Selecione a Aba",
-        ("Home", "Melhores Imóveis", "Previsão de Valor de Aluguel", "Desempenho de Equipes", "Cálculo de Comissões", "Criação Imóvel Sami/Vista", "Conferência de Seguros", "Gerador de Assinatura de E-mail")
+        # ("Home", "Melhores Imóveis", "Previsão de Valor de Aluguel", "Desempenho de Equipes", "Cálculo de Comissões", "Criação Imóvel Sami/Vista", "Conferência de Seguros", "Gerador de Assinatura de E-mail")
+        ("Home", "Desempenho de Equipes", "Cálculo de Comissões", "Criação Imóvel Sami/Vista", "Conferência de Seguros", "Gerador de Assinatura de E-mail")
     )
 
     # ------------- Introduction ------------------------
