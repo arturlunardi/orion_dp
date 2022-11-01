@@ -591,6 +591,7 @@ if check_password("password"):
                         elif type_of_report == 'Detalhado':
                             # primeiro transformo o valor do aluguel em float novamente
                             df_comissao_corretores['Valor do Aluguel'] = df_comissao_corretores['Valor do Aluguel'].apply(real_br_money_mask_to_float)
+                            st.write(df_comissao_corretores)
                             # crio um df agrupado de valor do aluguel por corretor
                             df_agrupado = df_comissao_corretores.groupby('Nome').sum()['Valor do Aluguel']
                             st.write(df_agrupado)
