@@ -178,6 +178,13 @@ def rower(data):
     return z
 
 
+def real_br_money_mask(my_value):
+    a = '{:,.2f}'.format(float(my_value))
+    b = a.replace(',','v')
+    c = b.replace('.',',')
+    return c.replace('v','.')
+
+
 # @st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False)
 def get_corretores_vendas_table(type_of_report, data_inicio, data_termino):
     if type_of_report == 'Compacto':
@@ -193,13 +200,6 @@ def get_corretores_vendas_table(type_of_report, data_inicio, data_termino):
         
     # return df.style.apply(rower, axis=None)
     return df
-
-
-def real_br_money_mask(my_value):
-    a = '{:,.2f}'.format(float(my_value))
-    b = a.replace(',','v')
-    c = b.replace('.',',')
-    return c.replace('v','.')
 
 
 # @st.cache(hash_funcs={"_thread.RLock": lambda _: None, 'builtins.weakref': lambda _: None}, show_spinner=False)
