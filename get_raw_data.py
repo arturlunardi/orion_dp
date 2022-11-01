@@ -104,6 +104,7 @@ def get_comissao_corretores(compacto, data_inicio, data_termino):
         {st.secrets['get_comissao_corretores_locacao']['sami_bd_groupby_false'].replace('begin_comissao_locacao_date', data_inicio).replace('final_comissao_locacao_date', data_termino)}""",
         conectar_sami())
         print(data)
+        print({st.secrets['get_comissao_corretores_locacao']['sami_bd_groupby_false'].replace('begin_comissao_locacao_date', data_inicio).replace('final_comissao_locacao_date', data_termino)})
         sys.stdout.flush()
     return data    
 
