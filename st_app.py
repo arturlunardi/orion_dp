@@ -580,9 +580,9 @@ if check_password("password"):
                 with st.spinner('Carregando os dados...'):
                     if type_of_role == 'Corretor (Apenas Locação)':
                         st.subheader('Corretores de Locação')
-                        df_comissao_corretores = create_dataset.get_corretores_vendas_table(type_of_report, data_inicio.strftime('%Y/%m/%d'), data_termino.strftime('%Y/%m/%d'))
+                        st.write(data_inicio.strftime('%Y-%m-%d'), data_termino.strftime('%Y-%m-%d'))
+                        df_comissao_corretores = create_dataset.get_corretores_vendas_table(type_of_report, data_inicio.strftime('%Y-%m-%d'), data_termino.strftime('%Y-%m-%d'))
                         st.write(df_comissao_corretores)
-                        st.write(df_comissao_corretores.info())
                         corretores_que_bateram_a_meta = []
                         
                         if type_of_report == 'Compacto':
@@ -594,7 +594,7 @@ if check_password("password"):
                             # primeiro transformo o valor do aluguel em float novamente
                             df_comissao_corretores['Valor do Aluguel'] = df_comissao_corretores['Valor do Aluguel'].apply(real_br_money_mask_to_float)
                             st.write(df_comissao_corretores)
-                            st.write(df_comissao_corretores.info())
+
                             # crio um df agrupado de valor do aluguel por corretor
                             df_agrupado = df_comissao_corretores.groupby('Nome').sum()['Valor do Aluguel']
                             st.write(df_agrupado)
