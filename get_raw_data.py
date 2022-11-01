@@ -103,7 +103,7 @@ def get_comissao_corretores(compacto, data_inicio, data_termino):
         print(f"""{st.secrets['get_comissao_corretores_locacao']['sami_bd_groupby_true'].replace('begin_comissao_locacao_date', data_inicio).replace('final_comissao_locacao_date', data_termino)}""")
         sys.stdout.flush()
     else:
-        data = pd.read_sql_query(f"""
+        data = pd.read_sql(f"""
         {st.secrets['get_comissao_corretores_locacao']['sami_bd_groupby_false'].replace('begin_comissao_locacao_date', data_inicio).replace('final_comissao_locacao_date', data_termino)}""",
         conectar_sami())
         print(data)
